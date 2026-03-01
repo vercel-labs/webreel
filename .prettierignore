@@ -1,0 +1,6 @@
+dist
+node_modules
+.next
+.turbo
+.webreel
+pnpm-lock.yaml

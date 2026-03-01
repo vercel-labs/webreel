@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Page</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        -webkit-font-smoothing: antialiased;
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 3rem;
+        border-bottom: 1px solid #1a1a1e;
+      }
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fafafa;
+        letter-spacing: -0.02em;
+      }
+      nav a {
+        color: #52525b;
+        text-decoration: none;
+        margin-left: 2rem;
+        font-size: 0.95rem;
+        transition: color 0.2s;
+      }
+      nav a:hover {
+        color: #a1a1aa;
+      }
+      .hero {
+        text-align: center;
+        padding: 6rem 2rem;
+      }
+      .hero h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1.25rem;
+        letter-spacing: -0.04em;
+        color: #fafafa;
+      }
+      .hero p {
+        font-size: 1.25rem;
+        color: #71717a;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+      }
+      .btn {
+        display: inline-block;
+        padding: 0.875rem 2rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+      }
+      .btn-primary {
+        background: #fafafa;
+        color: #09090b;
+      }
+      .btn-primary:hover {
+        background: #e4e4e7;
+      }
+      .btn-ghost {
+        color: #a1a1aa;
+        margin-left: 1rem;
+      }
+      .btn-ghost:hover {
+        color: #fafafa;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        padding: 4rem 3rem;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .feature {
+        background: #111113;
+        border-radius: 0.75rem;
+        padding: 2rem;
+        border: 1px solid #1a1a1e;
+      }
+      .feature-icon {
+        width: 48px;
+        height: 48px;
+        background: #18181b;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-family: "Geist Mono", monospace;
+        color: #71717a;
+        border: 1px solid #27272a;
+      }
+      .feature h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+      }
+      .feature p {
+        color: #71717a;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      nav a.active {
+        color: #fafafa;
+      }
+      .feature {
+        transition:
+          border-color 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+      .feature.highlight {
+        border-color: #3f3f46;
+        box-shadow: 0 0 0 1px #3f3f46;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <span class="logo">Acme</span>
+      <div>
+        <a href="#features-section" data-nav>Features</a><a href="#" data-nav>Pricing</a
+        ><a href="#" data-nav>Docs</a><a href="#" data-nav>Blog</a>
+      </div>
+    </nav>
+    <div class="hero">
+      <h1>Ship faster with Acme</h1>
+      <p>The modern platform for building, deploying, and scaling web applications.</p>
+      <a href="#features" class="btn btn-primary">Get Started</a>
+      <a href="#docs" class="btn btn-ghost">Read Docs</a>
+    </div>
+    <div class="features" id="features-section">
+      <div class="feature">
+        <div class="feature-icon">~</div>
+        <h3>Lightning Fast</h3>
+        <p>Built on edge infrastructure for sub-100ms response times worldwide.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">#</div>
+        <h3>Type Safe</h3>
+        <p>End-to-end type safety from database to frontend, catching bugs early.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">*</div>
+        <h3>Auto Scaling</h3>
+        <p>Scales from zero to millions of requests without any configuration.</p>
+      </div>
+    </div>
+    <script>
+      document.querySelectorAll("[data-nav]").forEach(function (link) {
+        link.addEventListener("click", function (e) {
+          document.querySelectorAll("[data-nav]").forEach(function (l) {
+            l.classList.remove("active");
+          });
+          this.classList.add("active");
+        });
+      });
+      var featuresLink = document.querySelector('a[href="#features-section"]');
+      featuresLink.addEventListener("click", function () {
+        setTimeout(function () {
+          document.querySelectorAll(".feature").forEach(function (f, i) {
+            setTimeout(function () {
+              f.classList.add("highlight");
+            }, i * 150);
+          });
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

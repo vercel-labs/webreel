@@ -1,0 +1,19 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "screenshots": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".hero",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "screenshot", "output": "hero.png" },
+        { "action": "click", "text": "Features", "delay": 800 },
+        { "action": "screenshot", "output": "after-click.png" },
+        { "action": "scroll", "y": 400, "delay": 500 },
+        { "action": "screenshot", "output": "features.png", "delay": 500 }
+      ]
+    }
+  }
+}

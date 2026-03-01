@@ -1,0 +1,6 @@
+{
+  "steps": [
+    { "action": "wait", "selector": ".cookie-banner", "timeout": 5000 },
+    { "action": "click", "selector": ".accept-btn", "delay": 300 }
+  ]
+}

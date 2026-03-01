@@ -1,0 +1,39 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "defaultDelay": 500,
+  "videos": {
+    "homepage": {
+      "url": "./web/index.html",
+      "zoom": 2,
+      "waitFor": ".hero",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "text": "Get Started", "delay": 1000 }
+      ]
+    },
+    "features": {
+      "url": "./web/index.html",
+      "zoom": 2,
+      "waitFor": ".features",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "scroll", "y": 400, "delay": 600 },
+        { "action": "click", "text": "Fast Deploys", "delay": 1000 }
+      ]
+    },
+    "pricing": {
+      "url": "./web/index.html",
+      "zoom": 2,
+      "waitFor": ".pricing",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "scroll", "y": 600 },
+        { "action": "click", "text": "Subscribe", "delay": 1000 }
+      ]
+    }
+  }
+}

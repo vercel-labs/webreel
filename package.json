@@ -1,0 +1,36 @@
+{
+  "name": "webreel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "type-check": "turbo run type-check",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "changeset": "changeset",
+    "record-examples": "bash scripts/record-examples.sh",
+    "sync-examples": "bash scripts/sync-examples.sh",
+    "release": "pnpm build && changeset publish",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.1",
+    "prettier": "^3.8.1",
+    "turbo": "^2.5.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,mdx,css}": "prettier --write"
+  },
+  "packageManager": "pnpm@10.6.2"
+}

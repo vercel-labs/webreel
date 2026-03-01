@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mobile App</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #1a1a1e;
+        background: rgba(9, 9, 11, 0.8);
+        backdrop-filter: blur(12px);
+      }
+      .logo {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #fafafa;
+        letter-spacing: -0.02em;
+      }
+      .menu-btn {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        cursor: pointer;
+        padding: 0.5rem;
+      }
+      .menu-btn span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: #71717a;
+        border-radius: 1px;
+      }
+      .content {
+        padding: 1.5rem 1.25rem;
+        padding-bottom: 5rem;
+      }
+      .greeting {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.03em;
+      }
+      .sub {
+        color: #71717a;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 400;
+      }
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .card {
+        background: #111113;
+        border-radius: 0.875rem;
+        padding: 1.25rem;
+        border: 1px solid #1a1a1e;
+      }
+      .card-label {
+        font-size: 0.8rem;
+        color: #71717a;
+        margin-bottom: 0.375rem;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+      .card-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .card-sub {
+        font-size: 0.8rem;
+        color: #a1a1aa;
+        margin-top: 0.25rem;
+        font-weight: 500;
+      }
+      .nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-around;
+        padding: 0.75rem 0;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+        background: rgba(17, 17, 19, 0.95);
+        border-top: 1px solid #1a1a1e;
+        backdrop-filter: blur(12px);
+      }
+      .nav a {
+        color: #52525b;
+        text-decoration: none;
+        font-size: 0.7rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.5rem;
+        transition: color 0.2s ease;
+      }
+      .nav a.active {
+        color: #fafafa;
+      }
+      .nav-icon {
+        width: 20px;
+        height: 20px;
+        border: 2px solid currentColor;
+        border-radius: 4px;
+      }
+      .menu-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 90;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+      .menu-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .menu-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 260px;
+        background: #111113;
+        border-left: 1px solid #1a1a1e;
+        z-index: 100;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        padding: 1.5rem 0;
+      }
+      .menu-drawer.open {
+        transform: translateX(0);
+      }
+      .menu-drawer-header {
+        padding: 0 1.25rem 1rem;
+        border-bottom: 1px solid #1a1a1e;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #fafafa;
+      }
+      .menu-drawer a {
+        display: block;
+        padding: 0.875rem 1.25rem;
+        color: #a1a1aa;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+      .menu-drawer a:hover,
+      .menu-drawer a.active {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fafafa;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo">Finly</span>
+      <div class="menu-btn"><span></span><span></span><span></span></div>
+    </header>
+    <div class="content">
+      <div class="greeting">Good morning</div>
+      <div class="sub">Here is your financial summary</div>
+      <div class="cards">
+        <div class="card">
+          <div class="card-label">Total Balance</div>
+          <div class="card-value">$12,840</div>
+          <div class="card-sub">+2.4% this month</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Monthly Spending</div>
+          <div class="card-value">$3,240</div>
+          <div class="card-sub">Under budget</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Savings Goal</div>
+          <div class="card-value">72%</div>
+          <div class="card-sub">$7,200 of $10,000</div>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <a href="#home" class="active"
+        ><div class="nav-icon"></div>
+        Home</a
+      >
+      <a href="#cards"
+        ><div class="nav-icon"></div>
+        Cards</a
+      >
+      <a href="#stats"
+        ><div class="nav-icon"></div>
+        Stats</a
+      >
+      <a href="#profile"
+        ><div class="nav-icon"></div>
+        Profile</a
+      >
+    </div>
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <div class="menu-drawer" id="menuDrawer">
+      <div class="menu-drawer-header">Menu</div>
+      <a href="#home" class="active">Home</a>
+      <a href="#cards">Cards</a>
+      <a href="#stats">Stats</a>
+      <a href="#settings">Settings</a>
+      <a href="#help">Help</a>
+    </div>
+    <script>
+      var menuBtn = document.querySelector(".menu-btn");
+      var overlay = document.getElementById("menuOverlay");
+      var drawer = document.getElementById("menuDrawer");
+
+      function openMenu() {
+        overlay.classList.add("open");
+        drawer.classList.add("open");
+      }
+      function closeMenu() {
+        overlay.classList.remove("open");
+        drawer.classList.remove("open");
+      }
+
+      menuBtn.addEventListener("click", function () {
+        if (drawer.classList.contains("open")) {
+          closeMenu();
+        } else {
+          openMenu();
+        }
+      });
+      overlay.addEventListener("click", closeMenu);
+    </script>
+  </body>
+</html>

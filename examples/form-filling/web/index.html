@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        background: #111113;
+        border-radius: 1rem;
+        padding: 2.5rem;
+        width: 420px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        border: 1px solid #27272a;
+      }
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+      }
+      .subtitle {
+        color: #71717a;
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+        font-weight: 400;
+      }
+      label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        color: #a1a1aa;
+      }
+      input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #27272a;
+        border-radius: 0.5rem;
+        background: #09090b;
+        color: #fafafa;
+        font-family: "Geist", sans-serif;
+        font-size: 1rem;
+        margin-bottom: 1.25rem;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+      input::placeholder {
+        color: #52525b;
+      }
+      input:focus {
+        border-color: #52525b;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+      }
+      .sign-in-btn {
+        width: 100%;
+        padding: 0.875rem;
+        background: #fafafa;
+        color: #09090b;
+        border: none;
+        border-radius: 0.5rem;
+        font-family: "Geist", sans-serif;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+      }
+      .sign-in-btn:hover {
+        background: #e4e4e7;
+      }
+      .dashboard {
+        display: none;
+        width: 100%;
+        max-width: 720px;
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+      .dashboard.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .dashboard h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+      }
+      .dashboard .greeting {
+        color: #71717a;
+        font-size: 0.95rem;
+        margin-bottom: 2rem;
+      }
+      .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .dash-stat {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+      }
+      .dash-stat .label {
+        font-size: 0.75rem;
+        color: #52525b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+      }
+      .dash-stat .value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      .dash-stat .delta {
+        font-size: 0.8rem;
+        color: #71717a;
+        margin-top: 0.25rem;
+      }
+      .activity {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+      }
+      .activity h2 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+      .activity-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.6rem 0;
+        border-top: 1px solid #1a1a1e;
+        font-size: 0.875rem;
+      }
+      .activity-row .name {
+        color: #e4e4e7;
+      }
+      .activity-row .time {
+        color: #52525b;
+      }
+      .card {
+        transition:
+          opacity 0.35s ease,
+          transform 0.35s ease;
+      }
+      .card.hidden {
+        opacity: 0;
+        transform: translateY(-12px);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your account</p>
+      <div>
+        <label for="email">Email</label>
+        <input type="text" id="email" placeholder="you@example.com" />
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Your password" />
+        <div class="sign-in-btn" id="sign-in-btn" role="button" tabindex="0">Sign In</div>
+      </div>
+    </div>
+    <div class="dashboard">
+      <h1>Dashboard</h1>
+      <p class="greeting">Welcome back, user@example.com</p>
+      <div class="dash-grid">
+        <div class="dash-stat">
+          <div class="label">Projects</div>
+          <div class="value">12</div>
+          <div class="delta">+2 this week</div>
+        </div>
+        <div class="dash-stat">
+          <div class="label">Deployments</div>
+          <div class="value">84</div>
+          <div class="delta">+17 this week</div>
+        </div>
+        <div class="dash-stat">
+          <div class="label">Uptime</div>
+          <div class="value">99.9%</div>
+          <div class="delta">Last 30 days</div>
+        </div>
+      </div>
+      <div class="activity">
+        <h2>Recent Activity</h2>
+        <div class="activity-row">
+          <span class="name">Deployed v2.4.1 to production</span
+          ><span class="time">2 min ago</span>
+        </div>
+        <div class="activity-row">
+          <span class="name">Merged pull request #127</span
+          ><span class="time">18 min ago</span>
+        </div>
+        <div class="activity-row">
+          <span class="name">Added environment variable</span
+          ><span class="time">1 hr ago</span>
+        </div>
+        <div class="activity-row">
+          <span class="name">Updated billing information</span
+          ><span class="time">3 hr ago</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.getElementById("sign-in-btn").addEventListener("click", function () {
+        var card = document.querySelector(".card");
+        var dash = document.querySelector(".dashboard");
+        card.classList.add("hidden");
+        setTimeout(function () {
+          card.style.display = "none";
+          dash.style.display = "block";
+          setTimeout(function () {
+            dash.classList.add("visible");
+          }, 30);
+        }, 350);
+      });
+    </script>
+  </body>
+</html>

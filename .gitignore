@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+.turbo
+.video
+.webreel
+
+.DS_Store
+.env*
+!.env.example
+coverage
+*.tsbuildinfo
+*.log
+package-lock.json

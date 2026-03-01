@@ -1,0 +1,30 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "form-filling": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": "#email",
+      "defaultDelay": 300,
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        {
+          "action": "type",
+          "text": "user@example.com",
+          "selector": "#email",
+          "charDelay": 40
+        },
+        {
+          "action": "type",
+          "text": "supersecret123",
+          "selector": "#password",
+          "charDelay": 30,
+          "delay": 500
+        },
+        { "action": "click", "text": "Sign In" },
+        { "action": "pause", "ms": 2500 }
+      ]
+    }
+  }
+}

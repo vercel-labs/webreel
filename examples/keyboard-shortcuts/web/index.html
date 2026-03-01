@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Editor</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        -webkit-font-smoothing: antialiased;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        background: #0f0f11;
+        border-bottom: 1px solid #1a1a1e;
+        gap: 1.5rem;
+      }
+      .doc-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #e4e4e7;
+        letter-spacing: -0.01em;
+      }
+      .format-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-left: 1rem;
+        padding-left: 1rem;
+        border-left: 1px solid #1a1a1e;
+      }
+      .fmt-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.375rem;
+        border: none;
+        background: transparent;
+        color: #52525b;
+        font-size: 0.875rem;
+        font-weight: 700;
+        font-family: "Geist", sans-serif;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .fmt-btn:hover {
+        background: #18181b;
+        color: #a1a1aa;
+      }
+      .fmt-btn.active {
+        background: #27272a;
+        color: #fafafa;
+      }
+      .fmt-btn-italic {
+        font-style: italic;
+      }
+      .fmt-btn-underline {
+        text-decoration: underline;
+      }
+      .fmt-btn-strike {
+        text-decoration: line-through;
+      }
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .save-status {
+        font-size: 0.75rem;
+        color: #3f3f46;
+        font-weight: 500;
+      }
+      .editor-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        overflow-y: auto;
+        padding: 3rem 2rem;
+      }
+      .editor {
+        width: 100%;
+        max-width: 680px;
+        outline: none;
+        font-size: 1.0625rem;
+        line-height: 1.85;
+        color: #d4d4d8;
+        caret-color: #fafafa;
+      }
+      .editor h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #fafafa;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+        line-height: 1.3;
+      }
+      .editor .meta {
+        font-size: 0.875rem;
+        color: #52525b;
+        margin-bottom: 2rem;
+        font-weight: 400;
+      }
+      .editor p {
+        margin-bottom: 1.25rem;
+      }
+      .editor strong {
+        color: #fafafa;
+        font-weight: 600;
+      }
+      .editor em {
+        color: #a1a1aa;
+      }
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #18181b;
+        border: 1px solid #3f3f46;
+        color: #e4e4e7;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        opacity: 0;
+        transition:
+          opacity 0.25s ease,
+          transform 0.25s ease;
+        pointer-events: none;
+        z-index: 200;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .palette-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 20vh;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .palette-overlay.show {
+        opacity: 1;
+      }
+      .palette {
+        width: 520px;
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+        transform: translateY(-8px);
+        transition: transform 0.2s ease;
+      }
+      .palette-overlay.show .palette {
+        transform: translateY(0);
+      }
+      .palette-input {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #1a1a1e;
+        color: #fafafa;
+        font-family: "Geist", sans-serif;
+        font-size: 0.9375rem;
+        outline: none;
+      }
+      .palette-input::placeholder {
+        color: #3f3f46;
+      }
+      .palette-results {
+        padding: 0.5rem;
+      }
+      .palette-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.625rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #a1a1aa;
+        transition: background 0.1s ease;
+      }
+      .palette-item:first-child {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fafafa;
+      }
+      .palette-item .shortcut {
+        font-family: "Geist Mono", monospace;
+        font-size: 0.75rem;
+        color: #3f3f46;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <span class="doc-title">Release Notes - v2.0</span>
+      <div class="format-bar">
+        <button class="fmt-btn" data-format="bold">B</button>
+        <button class="fmt-btn fmt-btn-italic" data-format="italic">I</button>
+        <button class="fmt-btn fmt-btn-underline" data-format="underline">U</button>
+        <button class="fmt-btn fmt-btn-strike" data-format="strike">S</button>
+      </div>
+      <div class="topbar-right">
+        <span class="save-status">Edited</span>
+      </div>
+    </div>
+    <div class="editor-wrap">
+      <div class="editor" contenteditable="true">
+        <h1>Release Notes - v2.0</h1>
+        <div class="meta">Draft - Last edited 2 minutes ago</div>
+        <p>
+          We are excited to announce the release of version 2.0, our biggest update yet.
+          This release includes a redesigned dashboard, improved performance across the
+          board, and several features our community has been requesting.
+        </p>
+        <p>
+          <strong>Redesigned Dashboard</strong> - The new dashboard loads 3x faster and
+          includes customizable widgets, real-time metrics, and a unified search bar that
+          lets you find anything across your projects.
+        </p>
+        <p>
+          <strong>Collaboration</strong> - Team members can now edit documents
+          simultaneously with live cursors, inline comments, and version history. Changes
+          sync instantly across all connected clients.
+        </p>
+        <p>
+          We have also improved our API response times by 40% and added support for
+          webhooks, bulk operations, and granular rate limiting. See the
+          <em>migration guide</em> for details on upgrading from v1.x.
+        </p>
+      </div>
+    </div>
+    <div class="toast" id="toast">Document saved</div>
+    <div class="palette-overlay" id="palette">
+      <div class="palette">
+        <input class="palette-input" placeholder="Search commands..." autofocus />
+        <div class="palette-results">
+          <div class="palette-item">
+            <span>Insert Table</span><span class="shortcut">Cmd+Shift+T</span>
+          </div>
+          <div class="palette-item">
+            <span>Toggle Heading</span><span class="shortcut">Cmd+Shift+H</span>
+          </div>
+          <div class="palette-item">
+            <span>Insert Code Block</span><span class="shortcut">Cmd+Shift+C</span>
+          </div>
+          <div class="palette-item">
+            <span>Add Comment</span><span class="shortcut">Cmd+Shift+M</span>
+          </div>
+          <div class="palette-item">
+            <span>Export as PDF</span><span class="shortcut">Cmd+Shift+E</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      var formatBtns = {
+        bold: document.querySelector('[data-format="bold"]'),
+        italic: document.querySelector('[data-format="italic"]'),
+        underline: document.querySelector('[data-format="underline"]'),
+        strike: document.querySelector('[data-format="strike"]'),
+      };
+
+      document.addEventListener("keydown", function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === "b") {
+          e.preventDefault();
+          formatBtns.bold.classList.toggle("active");
+          document.execCommand("bold");
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "i") {
+          e.preventDefault();
+          formatBtns.italic.classList.toggle("active");
+          document.execCommand("italic");
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+          e.preventDefault();
+          var status = document.querySelector(".save-status");
+          status.textContent = "Saved";
+          status.style.color = "#a1a1aa";
+          var toast = document.getElementById("toast");
+          toast.classList.add("show");
+          setTimeout(function () {
+            toast.classList.remove("show");
+          }, 2000);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault();
+          var palette = document.getElementById("palette");
+          palette.style.display = "flex";
+          setTimeout(function () {
+            palette.classList.add("show");
+          }, 10);
+          palette.querySelector(".palette-input").focus();
+        }
+        if (e.key === "Escape") {
+          var palette = document.getElementById("palette");
+          if (palette.classList.contains("show")) {
+            palette.classList.remove("show");
+            setTimeout(function () {
+              palette.style.display = "none";
+            }, 200);
+          }
+        }
+      });
+
+      document.getElementById("palette").addEventListener("click", function (e) {
+        if (e.target === this) {
+          this.classList.remove("show");
+          var self = this;
+          setTimeout(function () {
+            self.style.display = "none";
+          }, 200);
+        }
+      });
+    </script>
+  </body>
+</html>

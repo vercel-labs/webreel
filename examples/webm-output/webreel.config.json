@@ -1,0 +1,16 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "webm-output": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "output": "webm-output.webm",
+      "waitFor": ".chart",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "text": "View All Reports", "delay": 1000 }
+      ]
+    }
+  }
+}

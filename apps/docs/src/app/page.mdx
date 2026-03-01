@@ -1,0 +1,29 @@
+import { Hero } from "@/components/hero-video";
+
+export const metadata = {
+  title: "Introduction",
+  description:
+    "webreel is a CLI that turns JSON configs into polished browser demo videos with cursor animation, keystroke overlays, and sound effects.",
+};
+
+<Hero />
+
+## Use cases
+
+- **Product demos.** Keep video walkthroughs in sync with your UI. Update the config and re-record.
+- **Tutorials.** Script onboarding flows with visible cursor movement and keystroke labels.
+- **Changelogs.** Generate clips for new features. Configs are committable and reviewable in PRs.
+- **CI/CD.** Runs headless with auto-downloaded dependencies. Add `webreel record` to your pipeline.
+- **Screenshots.** Capture PNGs at any point in a flow with the `screenshot` action.
+
+## How it works
+
+webreel launches a headless browser, executes your steps, captures frames at ~60fps, composites cursor and keystroke overlays, and encodes the result with ffmpeg. Chrome and ffmpeg are auto-downloaded to `~/.webreel` on first use, or you can set `CHROME_PATH` and `FFMPEG_PATH`.
+
+## Get started
+
+- [Quick Start](/quick-start)
+- [Configuration](/configuration)
+- [Actions](/actions)
+- [Commands](/commands)
+- [Examples](/examples)

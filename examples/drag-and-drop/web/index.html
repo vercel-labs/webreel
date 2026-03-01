@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kanban Board</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        padding: 2rem;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.75rem;
+        letter-spacing: -0.02em;
+      }
+      .board {
+        display: flex;
+        gap: 1.5rem;
+      }
+      .column {
+        flex: 1;
+        background: #111113;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        min-height: 400px;
+        border: 1px solid #1a1a1e;
+      }
+      .column-header {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #52525b;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .column-header .count {
+        background: #18181b;
+        padding: 0.1875rem 0.5625rem;
+        border-radius: 1rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: #a1a1aa;
+        border: 1px solid #27272a;
+      }
+      .card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .card {
+        background: #09090b;
+        border: 1px solid #27272a;
+        border-radius: 0.5rem;
+        padding: 0.9375rem 1.125rem;
+        cursor: grab;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .card:hover {
+        border-color: #3f3f46;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      .card .card-title {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        font-size: 0.9375rem;
+        color: #e4e4e7;
+      }
+      .card .card-tag {
+        display: inline-block;
+        font-size: 0.6875rem;
+        padding: 0.1875rem 0.5625rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+      }
+      .tag-blue {
+        background: #18181b;
+        color: #a1a1aa;
+        border: 1px solid #27272a;
+      }
+      .tag-green {
+        background: #18181b;
+        color: #a1a1aa;
+        border: 1px solid #27272a;
+      }
+      .tag-amber {
+        background: #18181b;
+        color: #a1a1aa;
+        border: 1px solid #27272a;
+      }
+      .column-todo {
+      }
+      .column-in-progress {
+      }
+      .column-done {
+      }
+      .card.dragging {
+        opacity: 0.35;
+      }
+      .column.drag-over {
+        border-color: #3f3f46;
+        background: #18181b;
+      }
+    </style>
+    <script>
+      let draggedCard = null;
+
+      document.addEventListener("dragstart", (e) => {
+        draggedCard = e.target.closest(".card");
+        if (draggedCard) draggedCard.classList.add("dragging");
+      });
+
+      document.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const col = e.target.closest(".column");
+        if (col && !col.classList.contains("drag-over")) {
+          document
+            .querySelectorAll(".column.drag-over")
+            .forEach((c) => c.classList.remove("drag-over"));
+          col.classList.add("drag-over");
+        }
+      });
+
+      document.addEventListener("dragleave", (e) => {
+        const col = e.target.closest(".column");
+        if (col && !col.contains(e.relatedTarget)) col.classList.remove("drag-over");
+      });
+
+      document.addEventListener("drop", (e) => {
+        e.preventDefault();
+        document
+          .querySelectorAll(".column.drag-over")
+          .forEach((c) => c.classList.remove("drag-over"));
+        const cardList = e.target.closest(".column")?.querySelector(".card-list");
+        if (draggedCard && cardList && !cardList.contains(draggedCard)) {
+          cardList.appendChild(draggedCard);
+          draggedCard.classList.remove("dragging");
+          document.querySelectorAll(".column").forEach((col) => {
+            const count = col.querySelector(".count");
+            if (count) count.textContent = col.querySelectorAll(".card").length;
+          });
+        }
+        draggedCard = null;
+      });
+
+      document.addEventListener("dragend", () => {
+        if (draggedCard) draggedCard.classList.remove("dragging");
+        document
+          .querySelectorAll(".column.drag-over")
+          .forEach((c) => c.classList.remove("drag-over"));
+        draggedCard = null;
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Project Tasks</h1>
+    <div class="board">
+      <div class="column column-todo">
+        <div class="column-header">To Do <span class="count">3</span></div>
+        <div class="card-list">
+          <div class="card" draggable="true">
+            <div class="card-title">Write unit tests</div>
+            <span class="card-tag tag-blue">Dev</span>
+          </div>
+          <div class="card" draggable="true">
+            <div class="card-title">Update documentation</div>
+            <span class="card-tag tag-blue">Dev</span>
+          </div>
+          <div class="card" draggable="true">
+            <div class="card-title">Design landing page</div>
+            <span class="card-tag tag-green">Design</span>
+          </div>
+        </div>
+      </div>
+      <div class="column column-in-progress">
+        <div class="column-header">In Progress <span class="count">1</span></div>
+        <div class="card-list">
+          <div class="card" draggable="true">
+            <div class="card-title">Build API endpoints</div>
+            <span class="card-tag tag-blue">Dev</span>
+          </div>
+        </div>
+      </div>
+      <div class="column column-done">
+        <div class="column-header">Done <span class="count">1</span></div>
+        <div class="card-list">
+          <div class="card" draggable="true">
+            <div class="card-title">Set up CI pipeline</div>
+            <span class="card-tag tag-blue">Dev</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

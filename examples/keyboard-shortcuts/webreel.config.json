@@ -1,0 +1,23 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "keyboard-shortcuts": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".editor",
+      "defaultDelay": 600,
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": ".editor" },
+        { "action": "key", "key": "cmd+a" },
+        { "action": "key", "key": "cmd+b", "delay": 800 },
+        { "action": "click", "selector": ".editor p:first-of-type" },
+        { "action": "key", "key": "cmd+s", "delay": 1200 },
+        { "action": "key", "key": "cmd+k", "delay": 1000 },
+        { "action": "key", "key": "Escape", "delay": 800 },
+        { "action": "pause", "ms": 500 }
+      ]
+    }
+  }
+}

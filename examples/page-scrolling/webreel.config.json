@@ -1,0 +1,19 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "page-scrolling": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": "main",
+      "defaultDelay": 600,
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "scroll", "y": 400 },
+        { "action": "scroll", "y": 400 },
+        { "action": "scroll", "y": -300 },
+        { "action": "scroll", "y": 200, "selector": ".sidebar", "delay": 1000 }
+      ]
+    }
+  }
+}

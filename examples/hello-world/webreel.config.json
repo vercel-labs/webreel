@@ -1,0 +1,15 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "hello-world": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".cta",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "a.cta", "delay": 1000 }
+      ]
+    }
+  }
+}

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Manager</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        padding: 2rem 3rem;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: #71717a;
+        font-size: 0.85rem;
+        margin-bottom: 1.5rem;
+        font-weight: 400;
+      }
+      .file-list {
+        background: #111113;
+        border-radius: 0.875rem;
+        overflow: hidden;
+        border: 1px solid #1a1a1e;
+      }
+      .file-header {
+        display: grid;
+        grid-template-columns: 1fr 120px 120px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #52525b;
+        border-bottom: 1px solid #1a1a1e;
+        font-weight: 500;
+      }
+      .file-item {
+        display: grid;
+        grid-template-columns: 1fr 120px 120px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          opacity 0.25s ease,
+          transform 0.25s ease;
+        user-select: none;
+      }
+      .file-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .file-item.selected {
+        background: rgba(99, 102, 241, 0.15);
+        box-shadow: inset 3px 0 0 #818cf8;
+      }
+      .file-item.removing {
+        opacity: 0;
+        transform: scale(0.97);
+      }
+      .file-item:last-child {
+        border-bottom: none;
+      }
+      .file-name {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .file-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        flex-shrink: 0;
+      }
+      .icon-pdf {
+        background: #52525b;
+      }
+      .icon-xlsx {
+        background: #71717a;
+      }
+      .icon-txt {
+        background: #3f3f46;
+      }
+      .icon-png {
+        background: #a1a1aa;
+      }
+      .icon-zip {
+        background: #d4d4d8;
+      }
+      .file-size {
+        color: #71717a;
+        font-size: 0.875rem;
+      }
+      .file-date {
+        color: #71717a;
+        font-size: 0.875rem;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+      .toolbar-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #27272a;
+        background: #111113;
+        color: #e4e4e7;
+        font-size: 0.85rem;
+        cursor: pointer;
+        font-family: "Geist", sans-serif;
+        font-weight: 500;
+        transition: all 0.15s ease;
+      }
+      .toolbar-btn:hover {
+        background: #18181b;
+        border-color: #3f3f46;
+      }
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #18181b;
+        border: 1px solid #3f3f46;
+        color: #e4e4e7;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        opacity: 0;
+        transition:
+          opacity 0.25s ease,
+          transform 0.25s ease;
+        pointer-events: none;
+        z-index: 100;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>My Files</h1>
+    <div class="sub">6 items, 24.8 MB total</div>
+    <div class="file-list">
+      <div class="file-header">
+        <span>Name</span>
+        <span>Size</span>
+        <span>Modified</span>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-pdf"></div>
+          document.pdf
+        </div>
+        <div class="file-size">2.4 MB</div>
+        <div class="file-date">Jan 15</div>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-xlsx"></div>
+          report.xlsx
+        </div>
+        <div class="file-size">1.8 MB</div>
+        <div class="file-date">Jan 14</div>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-txt"></div>
+          notes.txt
+        </div>
+        <div class="file-size">12 KB</div>
+        <div class="file-date">Jan 13</div>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-png"></div>
+          screenshot.png
+        </div>
+        <div class="file-size">4.2 MB</div>
+        <div class="file-date">Jan 12</div>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-zip"></div>
+          archive.zip
+        </div>
+        <div class="file-size">16.1 MB</div>
+        <div class="file-date">Jan 10</div>
+      </div>
+      <div class="file-item">
+        <div class="file-name">
+          <div class="file-icon icon-txt"></div>
+          readme.txt
+        </div>
+        <div class="file-size">3 KB</div>
+        <div class="file-date">Jan 9</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-btn">Copy</div>
+      <div class="toolbar-btn">Move</div>
+      <div class="toolbar-btn delete-btn">Delete</div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script>
+      document.addEventListener("click", function (e) {
+        var item = e.target.closest(".file-item");
+        if (!item) return;
+        if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+          document.querySelectorAll(".file-item.selected").forEach(function (el) {
+            el.classList.remove("selected");
+          });
+        }
+        item.classList.add("selected");
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Backspace" || e.key === "Delete") {
+          e.preventDefault();
+          deleteSelected();
+        }
+      });
+
+      function deleteSelected() {
+        var selected = document.querySelectorAll(".file-item.selected");
+        if (selected.length === 0) return;
+        var count = selected.length;
+        selected.forEach(function (item) {
+          item.classList.add("removing");
+        });
+        setTimeout(function () {
+          selected.forEach(function (item) {
+            item.remove();
+          });
+          var remaining = document.querySelectorAll(".file-item");
+          document.querySelector(".sub").textContent = remaining.length + " items";
+        }, 350);
+        var toast = document.getElementById("toast");
+        toast.textContent = count + (count === 1 ? " file" : " files") + " deleted";
+        toast.classList.add("show");
+        setTimeout(function () {
+          toast.classList.remove("show");
+        }, 2000);
+      }
+    </script>
+  </body>
+</html>

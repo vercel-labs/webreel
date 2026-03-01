@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog Post</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .layout {
+        display: flex;
+        max-width: 1100px;
+        margin: 0 auto;
+        gap: 2rem;
+        padding: 2rem;
+      }
+      main {
+        flex: 1;
+      }
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+      }
+      .meta {
+        color: #71717a;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+        font-weight: 400;
+      }
+      h2 {
+        font-size: 1.5rem;
+        margin: 2rem 0 1rem;
+        color: #d4d4d8;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      p {
+        line-height: 1.8;
+        color: #a1a1aa;
+        margin-bottom: 1.25rem;
+        font-size: 1.05rem;
+      }
+      .sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 2rem;
+        align-self: flex-start;
+        background: #111113;
+        border-radius: 0.875rem;
+        padding: 1.25rem;
+        max-height: 320px;
+        overflow-y: auto;
+        border: 1px solid #1a1a1e;
+      }
+      .sidebar h3 {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #52525b;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+      .sidebar a {
+        display: block;
+        color: #a1a1aa;
+        text-decoration: none;
+        padding: 0.375rem 0;
+        font-size: 0.9rem;
+        transition: color 0.2s ease;
+        border-left: 2px solid transparent;
+        padding-left: 0.75rem;
+        margin-left: -0.75rem;
+      }
+      .sidebar a:hover {
+        color: #fafafa;
+        border-left-color: #52525b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <main>
+        <h1>The Future of Web Development</h1>
+        <div class="meta">Published on January 15, 2026 &middot; 8 min read</div>
+        <p>
+          The web development landscape continues to evolve at an incredible pace. New
+          frameworks, tools, and paradigms emerge regularly, each promising to make
+          development faster and more enjoyable.
+        </p>
+        <h2>Modern Frameworks</h2>
+        <p>
+          The rise of component-based architectures has fundamentally changed how we build
+          web applications. React, Vue, and Svelte each offer unique approaches to solving
+          the same core problems of state management and UI rendering.
+        </p>
+        <p>
+          Server-side rendering has made a comeback with frameworks like Next.js and Nuxt
+          bringing the best of both worlds: fast initial page loads with rich client-side
+          interactivity.
+        </p>
+        <h2>The Edge Revolution</h2>
+        <p>
+          Edge computing is moving application logic closer to users than ever before.
+          Functions running at the edge can respond in milliseconds, dramatically
+          improving the user experience for global audiences.
+        </p>
+        <p>
+          Database providers are following suit, offering globally distributed data stores
+          that keep data close to where it is needed most.
+        </p>
+        <h2>AI-Assisted Development</h2>
+        <p>
+          Artificial intelligence is transforming how developers write code. Code
+          completion tools can now suggest entire functions, while AI assistants help
+          debug complex issues and generate boilerplate.
+        </p>
+        <p>
+          The relationship between developers and AI tools is still evolving, but it is
+          clear that these tools are here to stay and will only become more capable over
+          time.
+        </p>
+        <h2>Web Standards</h2>
+        <p>
+          CSS has gained powerful new features like container queries, cascade layers, and
+          the :has() selector. These native capabilities reduce the need for JavaScript
+          workarounds and CSS-in-JS solutions.
+        </p>
+        <p>
+          The Web Components standard continues to mature, offering a framework-agnostic
+          way to build reusable UI components that work everywhere.
+        </p>
+        <h2>Performance Matters</h2>
+        <p>
+          Core Web Vitals have made performance a first-class concern for every web
+          developer. Tools for measuring and improving performance are more accessible
+          than ever.
+        </p>
+        <p>
+          Image optimization, code splitting, and lazy loading have become standard
+          practices. The performance bar keeps rising as user expectations grow.
+        </p>
+        <h2>Looking Ahead</h2>
+        <p>
+          The future of web development is bright. As tools improve and standards evolve,
+          building for the web becomes more powerful and more accessible. The best is yet
+          to come.
+        </p>
+      </main>
+      <aside class="sidebar">
+        <h3>Table of Contents</h3>
+        <a href="#frameworks">Modern Frameworks</a>
+        <a href="#edge">The Edge Revolution</a>
+        <a href="#ai">AI-Assisted Development</a>
+        <a href="#standards">Web Standards</a>
+        <a href="#performance">Performance Matters</a>
+        <a href="#ahead">Looking Ahead</a>
+        <h3>Related Posts</h3>
+        <a href="#">Getting Started with TypeScript</a>
+        <a href="#">CSS Container Queries Guide</a>
+        <a href="#">Building with Edge Functions</a>
+        <a href="#">React Server Components</a>
+        <a href="#">Web Components in 2026</a>
+        <a href="#">Optimizing Core Web Vitals</a>
+        <a href="#">Database at the Edge</a>
+        <a href="#">Modern CSS Techniques</a>
+      </aside>
+    </div>
+  </body>
+</html>

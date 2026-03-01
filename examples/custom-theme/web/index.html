@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Editor</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #a1a1aa;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        -webkit-font-smoothing: antialiased;
+      }
+      .titlebar {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: #0f0f11;
+        font-size: 0.8rem;
+        color: #52525b;
+        border-bottom: 1px solid #1a1a1e;
+        font-weight: 500;
+      }
+      .dots {
+        display: flex;
+        gap: 6px;
+        margin-right: 1rem;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .dot-red {
+        background: #71717a;
+      }
+      .dot-yellow {
+        background: #a1a1aa;
+      }
+      .dot-green {
+        background: #d4d4d8;
+      }
+      .main {
+        display: flex;
+        flex: 1;
+      }
+      .sidebar {
+        width: 220px;
+        background: #0f0f11;
+        border-right: 1px solid #1a1a1e;
+        padding: 1rem 0;
+      }
+      .sidebar-item {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        color: #52525b;
+        cursor: pointer;
+        font-family: "Geist Mono", monospace;
+        border-left: 3px solid transparent;
+        margin-left: -1px;
+        transition:
+          color 0.15s ease,
+          background 0.15s ease;
+      }
+      .sidebar-item:hover {
+        color: #a1a1aa;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .sidebar-item.active {
+        color: #e4e4e7;
+        background: rgba(255, 255, 255, 0.04);
+        border-left-color: #71717a;
+      }
+      .editor {
+        flex: 1;
+        padding: 1.5rem;
+        font-family: "Geist Mono", monospace;
+        font-size: 0.9rem;
+        line-height: 1.8;
+        background: #09090b;
+      }
+      .ln {
+        color: #3f3f46;
+        margin-right: 1.5rem;
+        user-select: none;
+      }
+      .kw {
+        color: #d4d4d8;
+        font-weight: 600;
+      }
+      .fn {
+        color: #e4e4e7;
+      }
+      .str {
+        color: #a1a1aa;
+      }
+      .cm {
+        color: #3f3f46;
+        font-style: italic;
+      }
+      .num {
+        color: #d4d4d8;
+      }
+      .op {
+        color: #71717a;
+      }
+      a.save-btn {
+        display: inline-block;
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: #fafafa;
+        color: #09090b;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-family: "Geist", sans-serif;
+        transition: all 0.15s ease;
+      }
+      a.save-btn:hover {
+        background: #e4e4e7;
+        transform: translateY(-1px);
+      }
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #18181b;
+        border: 1px solid #3f3f46;
+        color: #e4e4e7;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        opacity: 0;
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+        pointer-events: none;
+        z-index: 100;
+        font-family: "Geist", sans-serif;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .editor-content {
+        transition: opacity 0.2s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="titlebar">
+      <div class="dots">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+      </div>
+      <span>main.ts - My Project</span>
+    </div>
+    <div class="main">
+      <div class="sidebar">
+        <div class="sidebar-item active">main.ts</div>
+        <div class="sidebar-item">config.ts</div>
+        <div class="sidebar-item">utils.ts</div>
+        <div class="sidebar-item">types.ts</div>
+      </div>
+      <div class="editor">
+        <div>
+          <span class="ln"> 1</span><span class="kw">import</span> { serve }
+          <span class="kw">from</span> <span class="str">"./server"</span
+          ><span class="op">;</span>
+        </div>
+        <div>
+          <span class="ln"> 2</span><span class="kw">import</span> { loadConfig }
+          <span class="kw">from</span> <span class="str">"./config"</span
+          ><span class="op">;</span>
+        </div>
+        <div><span class="ln"> 3</span></div>
+        <div>
+          <span class="ln"> 4</span><span class="cm">// Initialize the application</span>
+        </div>
+        <div>
+          <span class="ln"> 5</span><span class="kw">const</span> config
+          <span class="op">=</span> <span class="fn">loadConfig</span>()<span class="op"
+            >;</span
+          >
+        </div>
+        <div>
+          <span class="ln"> 6</span><span class="kw">const</span> port
+          <span class="op">=</span> config.port <span class="op">??</span>
+          <span class="num">3000</span><span class="op">;</span>
+        </div>
+        <div><span class="ln"> 7</span></div>
+        <div>
+          <span class="ln"> 8</span><span class="fn">serve</span>({ port })<span
+            class="op"
+            >;</span
+          >
+        </div>
+        <div>
+          <span class="ln"> 9</span>console.<span class="fn">log</span>(<span class="str"
+            >`Running on port ${port}`</span
+          >)<span class="op">;</span>
+        </div>
+      </div>
+    </div>
+    <a href="#save" class="save-btn">Save File</a>
+    <div class="toast" id="toast">File saved</div>
+    <script>
+      var files = {
+        "main.ts": [
+          '<span class="kw">import</span> { serve } <span class="kw">from</span> <span class="str">"./server"</span><span class="op">;</span>',
+          '<span class="kw">import</span> { loadConfig } <span class="kw">from</span> <span class="str">"./config"</span><span class="op">;</span>',
+          "",
+          '<span class="cm">// Initialize the application</span>',
+          '<span class="kw">const</span> config <span class="op">=</span> <span class="fn">loadConfig</span>()<span class="op">;</span>',
+          '<span class="kw">const</span> port <span class="op">=</span> config.port <span class="op">??</span> <span class="num">3000</span><span class="op">;</span>',
+          "",
+          '<span class="fn">serve</span>({ port })<span class="op">;</span>',
+          'console.<span class="fn">log</span>(<span class="str">`Running on port ${port}`</span>)<span class="op">;</span>',
+        ],
+        "config.ts": [
+          '<span class="kw">export interface</span> <span class="fn">Config</span> {',
+          '  port<span class="op">:</span> <span class="fn">number</span><span class="op">;</span>',
+          '  env<span class="op">:</span> <span class="str">"dev"</span> <span class="op">|</span> <span class="str">"prod"</span><span class="op">;</span>',
+          "}",
+          "",
+          '<span class="kw">export function</span> <span class="fn">loadConfig</span>()<span class="op">:</span> <span class="fn">Config</span> {',
+          '  <span class="kw">return</span> {',
+          '    port<span class="op">:</span> <span class="num">3000</span><span class="op">,</span>',
+          '    env<span class="op">:</span> <span class="str">"dev"</span>',
+          '  }<span class="op">;</span>',
+          "}",
+        ],
+        "utils.ts": [
+          '<span class="kw">export function</span> <span class="fn">formatDate</span>(d<span class="op">:</span> Date)<span class="op">:</span> <span class="fn">string</span> {',
+          '  <span class="kw">return</span> d.<span class="fn">toISOString</span>().<span class="fn">slice</span>(<span class="num">0</span><span class="op">,</span> <span class="num">10</span>)<span class="op">;</span>',
+          "}",
+          "",
+          '<span class="kw">export function</span> <span class="fn">sleep</span>(ms<span class="op">:</span> <span class="fn">number</span>) {',
+          '  <span class="kw">return new</span> <span class="fn">Promise</span>(r <span class="op">=></span> <span class="fn">setTimeout</span>(r<span class="op">,</span> ms))<span class="op">;</span>',
+          "}",
+        ],
+        "types.ts": [
+          '<span class="kw">export type</span> <span class="fn">Status</span> <span class="op">=</span> <span class="str">"idle"</span> <span class="op">|</span> <span class="str">"running"</span> <span class="op">|</span> <span class="str">"done"</span><span class="op">;</span>',
+          "",
+          '<span class="kw">export interface</span> <span class="fn">Task</span> {',
+          '  id<span class="op">:</span> <span class="fn">string</span><span class="op">;</span>',
+          '  name<span class="op">:</span> <span class="fn">string</span><span class="op">;</span>',
+          '  status<span class="op">:</span> <span class="fn">Status</span><span class="op">;</span>',
+          "}",
+        ],
+      };
+
+      function renderFile(name) {
+        var lines = files[name];
+        var editor = document.querySelector(".editor");
+        var html = "";
+        lines.forEach(function (line, i) {
+          var num = String(i + 1).padStart(2, " ");
+          html += '<div><span class="ln">' + num + "</span>" + line + "</div>";
+        });
+        editor.style.opacity = "0.4";
+        setTimeout(function () {
+          editor.innerHTML = html;
+          editor.style.opacity = "1";
+        }, 150);
+        document.querySelector(".titlebar span").textContent = name + " - My Project";
+      }
+
+      document.querySelectorAll(".sidebar-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          document.querySelectorAll(".sidebar-item").forEach(function (s) {
+            s.classList.remove("active");
+          });
+          this.classList.add("active");
+          renderFile(this.textContent);
+        });
+      });
+
+      document.querySelector(".save-btn").addEventListener("click", function (e) {
+        e.preventDefault();
+        var toast = document.getElementById("toast");
+        var active = document.querySelector(".sidebar-item.active");
+        toast.textContent = (active ? active.textContent : "File") + " saved";
+        toast.classList.add("show");
+        setTimeout(function () {
+          toast.classList.remove("show");
+        }, 2000);
+      });
+    </script>
+  </body>
+</html>

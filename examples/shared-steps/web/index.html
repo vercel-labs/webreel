@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cookie Banner</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .page {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 3rem 2rem;
+      }
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        letter-spacing: -0.03em;
+      }
+      p {
+        color: #71717a;
+        line-height: 1.8;
+        margin-bottom: 1.25rem;
+        font-size: 1.05rem;
+      }
+      a.link {
+        color: #a1a1aa;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+      }
+      a.link:hover {
+        color: #fafafa;
+      }
+      .learn-more {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition:
+          max-height 0.5s ease,
+          opacity 0.4s ease,
+          margin-top 0.3s ease;
+        margin-top: 0;
+      }
+      .learn-more.visible {
+        max-height: 600px;
+        opacity: 1;
+        margin-top: 1.5rem;
+      }
+      .learn-more h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+      }
+      .platform-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .platform-card {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+      }
+      .platform-card h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #e4e4e7;
+        margin-bottom: 0.35rem;
+      }
+      .platform-card p {
+        font-size: 0.85rem;
+        color: #71717a;
+        margin: 0;
+        line-height: 1.5;
+      }
+      .cookie-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(17, 17, 19, 0.95);
+        border-top: 1px solid #1a1a1e;
+        padding: 1.25rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2rem;
+        z-index: 1000;
+        backdrop-filter: blur(12px);
+      }
+      .cookie-banner p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #71717a;
+        line-height: 1.5;
+      }
+      .cookie-banner .actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-shrink: 0;
+      }
+      .cookie-banner button {
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.375rem;
+        border: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        font-family: "Geist", sans-serif;
+        transition: all 0.2s ease;
+      }
+      .accept-btn {
+        background: #fafafa;
+        color: #09090b;
+      }
+      .accept-btn:hover {
+        background: #e4e4e7;
+      }
+      .decline-btn {
+        background: rgba(255, 255, 255, 0.06);
+        color: #fafafa;
+        border: 1px solid #27272a;
+      }
+      .decline-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Welcome to Our Site</h1>
+      <p>
+        We are glad you are here. This site showcases how shared setup steps can dismiss
+        common UI elements like cookie banners before the main demo steps run.
+      </p>
+      <p>
+        Once the banner is dismissed, the main content becomes the focus of the recording.
+      </p>
+      <p><a href="#learn" class="link">Learn more about our platform</a></p>
+      <div class="learn-more">
+        <h2>Our Platform</h2>
+        <p>Built for modern teams that need to move fast without breaking things.</p>
+        <div class="platform-grid">
+          <div class="platform-card">
+            <h3>Edge Network</h3>
+            <p>Deploy to 200+ edge locations worldwide for sub-50ms latency.</p>
+          </div>
+          <div class="platform-card">
+            <h3>CI/CD Pipeline</h3>
+            <p>Automated builds, tests, and deployments on every push.</p>
+          </div>
+          <div class="platform-card">
+            <h3>Observability</h3>
+            <p>Logs, metrics, and traces in a single unified dashboard.</p>
+          </div>
+          <div class="platform-card">
+            <h3>Team Management</h3>
+            <p>Roles, permissions, and audit logs for your entire organization.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cookie-banner">
+      <p>
+        We use cookies to improve your experience. By continuing, you agree to our cookie
+        policy.
+      </p>
+      <div class="actions">
+        <button class="decline-btn" onclick="this.closest('.cookie-banner').remove()">
+          Decline
+        </button>
+        <button class="accept-btn" onclick="this.closest('.cookie-banner').remove()">
+          Accept All
+        </button>
+      </div>
+    </div>
+    <script>
+      document.querySelector(".link").addEventListener("click", function (e) {
+        e.preventDefault();
+        var section = document.querySelector(".learn-more");
+        if (section.classList.contains("visible")) return;
+        section.classList.add("visible");
+        this.style.opacity = "0.5";
+        this.style.pointerEvents = "none";
+      });
+    </script>
+  </body>
+</html>

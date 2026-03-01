@@ -1,0 +1,824 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://webreel.dev/schema/v1.json",
+  "title": "webreel Configuration",
+  "description": "Configuration file for webreel - record scripted browser videos as MP4/GIF/WebM. String values support environment variable substitution via $VAR or ${VAR} syntax. Set CHROME_PATH or FFMPEG_PATH to override auto-downloaded binaries.",
+  "type": "object",
+  "required": ["videos"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for IDE support."
+    },
+    "outDir": {
+      "type": "string",
+      "default": "videos",
+      "description": "Output directory for recorded videos. Resolved relative to the config file. Defaults to 'videos/'."
+    },
+    "baseUrl": {
+      "type": "string",
+      "description": "Base URL prepended to relative video URLs. Supports env var substitution (e.g. \"$BASE_URL\" or \"${BASE_URL}\")."
+    },
+    "viewport": {
+      "$ref": "#/$defs/viewport",
+      "description": "Default viewport dimensions for all videos."
+    },
+    "theme": {
+      "$ref": "#/$defs/theme",
+      "description": "Default overlay theme for all videos."
+    },
+    "sfx": {
+      "$ref": "#/$defs/sfx",
+      "description": "Default sound effect variants for all videos."
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths to JSON files whose steps are prepended to all videos."
+    },
+    "defaultDelay": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Default delay in milliseconds applied after each step. Can be overridden per-video or per-step via the 'delay' field. For explicit waits between steps, use a 'pause' step instead."
+    },
+    "clickDwell": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Milliseconds the cursor pauses after reaching its target before clicking. Simulates human dwell time. Defaults to a random 80-180ms when not set. Set to 0 to click instantly."
+    },
+    "videos": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/video"
+      },
+      "description": "Map of video names to their configurations."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "viewport": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "desktop",
+            "desktop-hd",
+            "laptop",
+            "macbook-air",
+            "macbook-pro",
+            "ipad",
+            "ipad-pro",
+            "ipad-mini",
+            "iphone-15",
+            "iphone-15-pro-max",
+            "iphone-se",
+            "pixel-8",
+            "galaxy-s24"
+          ],
+          "description": "Named device preset."
+        },
+        {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Viewport width in pixels."
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Viewport height in pixels."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cursorConfig": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Path to a custom cursor SVG file."
+        },
+        "size": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Size of the cursor overlay in pixels.",
+          "default": 24
+        },
+        "hotspot": {
+          "type": "string",
+          "enum": ["top-left", "center"],
+          "description": "Where the click point lands relative to the cursor image. Use 'center' for circle/dot cursors.",
+          "default": "top-left"
+        }
+      },
+      "additionalProperties": false
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "$ref": "#/$defs/cursorConfig",
+          "description": "Cursor overlay configuration."
+        },
+        "hud": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string",
+              "description": "CSS background value for the keystroke HUD."
+            },
+            "color": {
+              "type": "string",
+              "description": "CSS text color for the keystroke HUD."
+            },
+            "fontSize": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Font size in pixels for the keystroke HUD.",
+              "default": 56
+            },
+            "fontFamily": {
+              "type": "string",
+              "description": "CSS font-family for the keystroke HUD."
+            },
+            "borderRadius": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Border radius in pixels for the keystroke HUD.",
+              "default": 18
+            },
+            "position": {
+              "type": "string",
+              "enum": ["top", "bottom"],
+              "description": "Position of the keystroke HUD.",
+              "default": "bottom"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sfx": {
+      "type": "object",
+      "properties": {
+        "click": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "enum": [1, 2, 3, 4]
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "default": 1,
+          "description": "Mouse click sound: built-in variant (1-4) or path to a custom audio file."
+        },
+        "key": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "enum": [1, 2, 3, 4]
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "default": 1,
+          "description": "Keyboard press sound: built-in variant (1-4) or path to a custom audio file."
+        }
+      },
+      "additionalProperties": false
+    },
+    "thumbnail": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Time in seconds to capture the thumbnail. Defaults to 0 (first frame)."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Set to false to skip thumbnail generation."
+        }
+      },
+      "additionalProperties": false
+    },
+    "video": {
+      "type": "object",
+      "required": ["url", "steps"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "URL to navigate to. Can be relative when baseUrl is set."
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "Base URL prepended to relative URLs. Overrides the top-level baseUrl."
+        },
+        "viewport": {
+          "$ref": "#/$defs/viewport",
+          "description": "Viewport dimensions. Overrides the top-level viewport."
+        },
+        "zoom": {
+          "type": "number",
+          "description": "CSS zoom level applied to the page (e.g. 2 for 2x zoom)."
+        },
+        "fps": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 120,
+          "default": 60,
+          "description": "Recording frame rate. Defaults to 60. Lower values (e.g. 30) reduce file size."
+        },
+        "quality": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80,
+          "description": "Output quality (1-100). Higher values produce larger files. Maps to CRF for MP4/WebM."
+        },
+        "waitFor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "CSS selector to wait for before starting steps."
+            },
+            {
+              "$ref": "#/$defs/elementTarget",
+              "description": "Element to wait for before starting steps. Use { \"text\": \"...\" } to wait for visible text."
+            }
+          ],
+          "description": "Element to wait for before starting steps. A string is treated as a CSS selector."
+        },
+        "output": {
+          "type": "string",
+          "description": "Output file path (.mp4, .gif, or .webm). Resolved relative to outDir."
+        },
+        "thumbnail": {
+          "$ref": "#/$defs/thumbnail",
+          "description": "Thumbnail generation options."
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Paths to JSON files whose steps are prepended."
+        },
+        "theme": {
+          "$ref": "#/$defs/theme",
+          "description": "Overlay theme. Overrides the top-level theme."
+        },
+        "sfx": {
+          "$ref": "#/$defs/sfx",
+          "description": "Sound effect variants. Overrides the top-level sfx."
+        },
+        "defaultDelay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Default delay in milliseconds applied after each step. Overrides the top-level defaultDelay."
+        },
+        "clickDwell": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Milliseconds the cursor pauses after reaching its target before clicking. Overrides the top-level clickDwell."
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "description": "Array of action steps to execute."
+        }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/stepPause"
+        },
+        {
+          "$ref": "#/$defs/stepClick"
+        },
+        {
+          "$ref": "#/$defs/stepKey"
+        },
+        {
+          "$ref": "#/$defs/stepDrag"
+        },
+        {
+          "$ref": "#/$defs/stepType"
+        },
+        {
+          "$ref": "#/$defs/stepScroll"
+        },
+        {
+          "$ref": "#/$defs/stepWait"
+        },
+        {
+          "$ref": "#/$defs/stepMoveTo"
+        },
+        {
+          "$ref": "#/$defs/stepScreenshot"
+        },
+        {
+          "$ref": "#/$defs/stepNavigate"
+        },
+        {
+          "$ref": "#/$defs/stepHover"
+        },
+        {
+          "$ref": "#/$defs/stepSelect"
+        }
+      ]
+    },
+    "delay": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Delay in milliseconds to wait after this step executes. Overrides defaultDelay for this step. For longer explicit waits, use a 'pause' step instead."
+    },
+    "label": {
+      "type": "string",
+      "description": "Display label for the HUD overlay. Shown on-screen during recording."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description for documentation. Shown in --verbose output."
+    },
+    "stepPause": {
+      "type": "object",
+      "required": ["action", "ms"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "pause"
+        },
+        "ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration in milliseconds. For post-step delays, use the 'delay' field on any other step instead."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepClick": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "click"
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text to find and click."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to find and click."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Modifier keys to hold during click (e.g. [\"cmd\"])."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "stepKey": {
+      "type": "object",
+      "required": ["action", "key"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "key"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key or key combo. Combine with '+' (e.g. \"mod+z\", \"cmd+shift+a\"). Use \"mod\" for the platform modifier (cmd on macOS, ctrl elsewhere). Common keys: a-z, 0-9, Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, Space, F1-F12. Modifiers: mod, cmd, ctrl, shift, alt, meta."
+        },
+        "target": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "CSS selector of element to focus first."
+            },
+            {
+              "$ref": "#/$defs/elementTarget",
+              "description": "Element target to focus first."
+            }
+          ]
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the keystroke HUD."
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepDrag": {
+      "type": "object",
+      "required": ["action", "from", "to"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "drag"
+        },
+        "from": {
+          "$ref": "#/$defs/elementTarget",
+          "description": "Element to drag from."
+        },
+        "to": {
+          "$ref": "#/$defs/elementTarget",
+          "description": "Element to drag to."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepType": {
+      "type": "object",
+      "required": ["action", "text"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "type"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Text to type character by character."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector of the element to click before typing."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "charDelay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Delay in milliseconds between keystrokes."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepScroll": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "scroll"
+        },
+        "x": {
+          "type": "number",
+          "description": "Horizontal scroll distance in pixels."
+        },
+        "y": {
+          "type": "number",
+          "description": "Vertical scroll distance in pixels."
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text of the element to scroll."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector of element to scroll."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepWait": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "wait"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to wait for."
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text to wait for."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "timeout": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Timeout in milliseconds.",
+          "default": 30000
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["selector"]
+        },
+        {
+          "required": ["text"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "stepMoveTo": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "moveTo"
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text of the target element."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector of the target element."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "stepScreenshot": {
+      "type": "object",
+      "required": ["action", "output"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "screenshot"
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Output file path for the screenshot."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepNavigate": {
+      "type": "object",
+      "required": ["action", "url"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "navigate"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "URL to navigate to. Resolved relative to baseUrl if set."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepHover": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "hover"
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text of the element to hover."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector of the element to hover."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "stepSelect": {
+      "type": "object",
+      "required": ["action", "value"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "select"
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text of the <select> element."
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector of the <select> element."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "value": {
+          "type": "string",
+          "description": "Value to select."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "elementTarget": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Visible text to match."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to match."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

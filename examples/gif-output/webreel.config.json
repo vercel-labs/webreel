@@ -1,0 +1,16 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "gif-output": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "output": "gif-output.gif",
+      "waitFor": ".primary",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": "a.primary", "delay": 1000 }
+      ]
+    }
+  }
+}

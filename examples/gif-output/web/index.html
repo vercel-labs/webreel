@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Demo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .container {
+        text-align: center;
+      }
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.03em;
+      }
+      p {
+        color: #71717a;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+      }
+      .buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+      }
+      a {
+        padding: 0.75rem 1.75rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.15s ease;
+      }
+      a:active {
+        transform: scale(0.97);
+      }
+      .primary {
+        background: #fafafa;
+        color: #09090b;
+      }
+      .primary:hover {
+        background: #e4e4e7;
+      }
+      .secondary {
+        background: #18181b;
+        color: #e4e4e7;
+        border: 1px solid #27272a;
+      }
+      .secondary:hover {
+        border-color: #3f3f46;
+        background: #27272a;
+      }
+      .container {
+        transition:
+          opacity 0.35s ease,
+          transform 0.35s ease;
+      }
+      .container.hidden {
+        opacity: 0;
+        transform: scale(0.97);
+        pointer-events: none;
+      }
+      .setup {
+        display: none;
+        text-align: center;
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+      .setup.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .setup h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+      }
+      .setup .sub {
+        color: #71717a;
+        margin-bottom: 2rem;
+        font-size: 1rem;
+      }
+      .code-block {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        padding: 1.5rem 2rem;
+        text-align: left;
+        font-family: "Geist Mono", monospace;
+        font-size: 0.9rem;
+        color: #e4e4e7;
+        line-height: 1.8;
+        max-width: 440px;
+        margin: 0 auto;
+      }
+      .code-block .prompt {
+        color: #52525b;
+      }
+      .code-block .cmd {
+        color: #fafafa;
+      }
+      .code-block .flag {
+        color: #71717a;
+      }
+      .check-line {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+        font-size: 0.95rem;
+        color: #a1a1aa;
+      }
+      .check-line .check {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #3f3f46;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        color: #fafafa;
+        background: #27272a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Try It Out</h1>
+      <p>See how easy it is to get started.</p>
+      <div class="buttons">
+        <a href="#start" class="primary">Start Now</a>
+        <a href="#learn" class="secondary">Learn More</a>
+      </div>
+    </div>
+    <div class="setup">
+      <h1>You're all set</h1>
+      <p class="sub">Run this command to create your first project.</p>
+      <div class="code-block">
+        <div>
+          <span class="prompt">$</span> <span class="cmd">npx create-acme-app</span>
+          <span class="flag">my-project</span>
+        </div>
+        <div>
+          <span class="prompt">$</span> <span class="cmd">cd</span>
+          <span class="flag">my-project</span>
+        </div>
+        <div><span class="prompt">$</span> <span class="cmd">npm run dev</span></div>
+      </div>
+      <div class="check-line"><span class="check">&#10003;</span> Ready to deploy</div>
+    </div>
+    <script>
+      document.querySelector("a.primary").addEventListener("click", function (e) {
+        e.preventDefault();
+        var container = document.querySelector(".container");
+        var setup = document.querySelector(".setup");
+        container.classList.add("hidden");
+        setTimeout(function () {
+          container.style.display = "none";
+          setup.style.display = "block";
+          setTimeout(function () {
+            setup.classList.add("visible");
+          }, 30);
+        }, 350);
+      });
+    </script>
+  </body>
+</html>

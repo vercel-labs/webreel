@@ -1,0 +1,4 @@
+packages:
+  - "packages/@webreel/*"
+  - "packages/webreel"
+  - "apps/*"

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "drag-and-drop": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".board",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "moveTo", "text": "Write unit tests", "delay": 400 },
+        {
+          "action": "drag",
+          "from": { "text": "Write unit tests", "within": ".column-todo" },
+          "to": { "selector": ".card-list", "within": ".column-in-progress" },
+          "delay": 600
+        },
+        {
+          "action": "drag",
+          "from": { "text": "Build API endpoints", "within": ".column-in-progress" },
+          "to": { "selector": ".card-list", "within": ".column-done" },
+          "delay": 1000
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "@webreel/core",
+  "version": "0.0.0",
+  "description": "Core recording engine for webreel - headless Chrome capture, cursor animation, and video compositing.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel-labs/webreel.git",
+    "directory": "packages/@webreel/core"
+  },
+  "keywords": [
+    "video",
+    "recording",
+    "browser",
+    "headless",
+    "chrome",
+    "cdp",
+    "screencast",
+    "automation"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "rm -rf dist && tsc",
+    "type-check": "tsc --noEmit",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "chrome-remote-interface": "^0.33.2",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@types/chrome-remote-interface": "^0.33.0",
+    "@types/node": "25.3.0",
+    "typescript": "5.9.3"
+  }
+}

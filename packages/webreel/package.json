@@ -1,0 +1,56 @@
+{
+  "name": "webreel",
+  "version": "0.0.0",
+  "description": "Record scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, and sound effects.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel-labs/webreel.git"
+  },
+  "keywords": [
+    "video",
+    "recording",
+    "browser",
+    "demo",
+    "automation",
+    "headless",
+    "chrome",
+    "mp4",
+    "gif",
+    "webm",
+    "screencast"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    }
+  },
+  "bin": {
+    "webreel": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "rm -rf dist && tsc",
+    "type-check": "tsc --noEmit",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@webreel/core": "workspace:*",
+    "commander": "^14.0.3",
+    "jiti": "^2.6.1",
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "25.3.0",
+    "typescript": "5.9.3"
+  }
+}

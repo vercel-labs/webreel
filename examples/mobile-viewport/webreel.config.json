@@ -1,0 +1,25 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "mobile-viewport": {
+      "url": "./web/index.html",
+      "viewport": { "width": 390, "height": 844 },
+      "zoom": 2,
+      "waitFor": ".content",
+      "theme": {
+        "cursor": {
+          "hotspot": "center"
+        }
+      },
+      "defaultDelay": 600,
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "selector": ".menu-btn" },
+        { "action": "pause", "ms": 1000 },
+        { "action": "click", "selector": "#menuOverlay" },
+        { "action": "scroll", "y": 300, "delay": 800 },
+        { "action": "pause", "ms": 500 }
+      ]
+    }
+  }
+}

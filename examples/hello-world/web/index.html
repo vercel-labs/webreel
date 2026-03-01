@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello World</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-mono/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .container {
+        text-align: center;
+        max-width: 600px;
+        padding: 3rem 2rem;
+      }
+      h1 {
+        font-size: 4rem;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+        color: #fafafa;
+      }
+      p {
+        font-size: 1.25rem;
+        color: #71717a;
+        margin-bottom: 2.5rem;
+        line-height: 1.7;
+        font-weight: 400;
+      }
+      a.cta {
+        display: inline-block;
+        padding: 1rem 2.25rem;
+        background: #fafafa;
+        color: #09090b;
+        border-radius: 0.625rem;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 1rem;
+        letter-spacing: -0.01em;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+      a.cta:hover {
+        background: #e4e4e7;
+        transform: translateY(-1px);
+      }
+      .container {
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+      }
+      .container.hidden {
+        opacity: 0;
+        transform: translateY(-12px);
+        pointer-events: none;
+      }
+      .onboarding {
+        display: none;
+        text-align: center;
+        max-width: 560px;
+        padding: 3rem 2rem;
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+      .onboarding.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .onboarding h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+      }
+      .onboarding .sub {
+        color: #71717a;
+        margin-bottom: 2.5rem;
+        font-size: 1.05rem;
+      }
+      .steps-list {
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .step-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+      }
+      .step-num {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #18181b;
+        border: 1px solid #3f3f46;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #e4e4e7;
+        flex-shrink: 0;
+      }
+      .step-item .text h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+      }
+      .step-item .text p {
+        font-size: 0.85rem;
+        color: #71717a;
+        margin: 0;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Welcome to Acme</h1>
+      <p>Build something amazing with our platform. Get started in seconds.</p>
+      <a href="#started" class="cta">Get Started</a>
+    </div>
+    <div class="onboarding">
+      <h1>Get Started</h1>
+      <p class="sub">Set up your project in three easy steps.</p>
+      <div class="steps-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="text">
+            <h3>Create a project</h3>
+            <p>Pick a name and choose your framework.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="text">
+            <h3>Connect your repo</h3>
+            <p>Link your GitHub, GitLab, or Bitbucket repository.</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="text">
+            <h3>Deploy</h3>
+            <p>Push your code and we handle the rest.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.querySelector("a.cta").addEventListener("click", function (e) {
+        e.preventDefault();
+        var container = document.querySelector(".container");
+        var onboarding = document.querySelector(".onboarding");
+        container.classList.add("hidden");
+        setTimeout(function () {
+          container.style.display = "none";
+          onboarding.style.display = "block";
+          setTimeout(function () {
+            onboarding.classList.add("visible");
+          }, 30);
+        }, 400);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+export const metadata = {
+  title: "Quick Start",
+  description: "Get up and running with webreel in under a minute.",
+};
+
+# Quick Start
+
+## Install
+
+```bash
+npm install webreel
+```
+
+## Initialize
+
+```bash
+npx webreel init
+```
+
+This creates a `webreel.config.json`:
+
+```json
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "my-video": {
+      "url": "https://example.com",
+      "viewport": { "width": 1080, "height": 1080 },
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "text": "Get Started" },
+        { "action": "key", "key": "cmd+a" },
+        { "action": "pause", "ms": 1000 }
+      ]
+    }
+  }
+}
+```
+
+- **`url`** is the page to open.
+- **`viewport`** sets the video resolution.
+- **`steps`** is the list of actions to perform.
+
+## Record
+
+```bash
+npx webreel record
+```
+
+Output is written to `videos/my-video.mp4`. Set the `output` field to use `.gif` or `.webm` instead.
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+
+Chrome and ffmpeg are auto-downloaded to `~/.webreel` on first use, or you can set `CHROME_PATH` and `FFMPEG_PATH`.
+
+## Next steps
+
+- [Configuration](/configuration) - all config options
+- [Actions](/actions) - click, type, scroll, drag, and more
+- [Commands](/commands) - CLI reference
+- [Examples](/examples) - full working demos

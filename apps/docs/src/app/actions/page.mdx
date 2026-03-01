@@ -1,0 +1,537 @@
+export const metadata = {
+  title: "Actions",
+  description:
+    "All available step actions in webreel: click, type, key, scroll, drag, wait, navigate, and more.",
+};
+
+# Actions
+
+Actions are the individual steps that make up a video. Each step in the `steps` array has an `action` field and action-specific parameters.
+
+Every step also accepts an optional `description` field (string) for documentation purposes. Descriptions are shown in `--verbose` and `--dry-run` output but otherwise ignored at runtime.
+
+Steps that target elements accept `text`, `selector`, and `within` fields to identify the element.
+
+Every step (except `pause`) also accepts an optional `label` field (shown on-screen during recording) and an optional `delay` field (milliseconds to wait after the step executes). See [delay and defaultDelay](/configuration#delay-and-defaultdelay) and [Step label and description](/configuration#step-label-and-description) for details.
+
+## pause
+
+Wait for a duration before continuing to the next step.
+
+```json
+{ "action": "pause", "ms": 500 }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>ms</code>
+      </td>
+      <td>number</td>
+      <td>Duration in milliseconds</td>
+    </tr>
+  </tbody>
+</table>
+
+## click
+
+Move the cursor to an element and click it.
+
+```json
+{ "action": "click", "text": "Get Started" }
+{ "action": "click", "selector": "#submit-btn" }
+{ "action": "click", "text": "Save", "within": ".modal" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to find the element by</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector to find the element</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+    <tr>
+      <td>
+        <code>modifiers</code>
+      </td>
+      <td>string[]</td>
+      <td>Modifier keys to hold during click</td>
+    </tr>
+  </tbody>
+</table>
+
+Provide either `text` or `selector`, not both.
+
+## key
+
+Press a key or key combination.
+
+```json
+{ "action": "key", "key": "mod+a" }
+{ "action": "key", "key": "Enter", "label": "Submit" }
+{ "action": "key", "key": "Escape", "target": "#modal" }
+```
+
+Use `mod+` as a platform-agnostic modifier. It maps to Cmd on macOS and Ctrl on other platforms. You can also use `cmd+` or `ctrl+` explicitly.
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>key</code>
+      </td>
+      <td>string</td>
+      <td>
+        Key or combo (e.g. <code>"mod+z"</code>, <code>"Enter"</code>,{" "}
+        <code>"shift+tab"</code>)
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>target</code>
+      </td>
+      <td>string or object</td>
+      <td>
+        CSS selector string, or element target object, to focus before pressing the key
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>label</code>
+      </td>
+      <td>string</td>
+      <td>Optional label shown in the keystroke overlay</td>
+    </tr>
+  </tbody>
+</table>
+
+## type
+
+Type a string of text character by character. Useful for filling form fields with a realistic typing animation.
+
+```json
+{ "action": "type", "text": "hello@example.com" }
+{ "action": "type", "text": "search query", "selector": "#search" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>The text to type</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector of the element to click before typing</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+    <tr>
+      <td>
+        <code>charDelay</code>
+      </td>
+      <td>number</td>
+      <td>Milliseconds between each keystroke (default: 80)</td>
+    </tr>
+  </tbody>
+</table>
+
+## scroll
+
+Scroll the page or a specific element.
+
+```json
+{ "action": "scroll", "y": 300 }
+{ "action": "scroll", "y": -200, "selector": ".sidebar" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>x</code>
+      </td>
+      <td>number</td>
+      <td>Horizontal scroll offset in pixels</td>
+    </tr>
+    <tr>
+      <td>
+        <code>y</code>
+      </td>
+      <td>number</td>
+      <td>Vertical scroll offset in pixels</td>
+    </tr>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to find the element to scroll</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector of the element to scroll (defaults to the window)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+  </tbody>
+</table>
+
+## wait
+
+Wait for an element to appear before continuing.
+
+```json
+{ "action": "wait", "selector": ".loaded" }
+{ "action": "wait", "text": "Welcome back", "timeout": 5000 }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector to wait for</td>
+    </tr>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to wait for</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+    <tr>
+      <td>
+        <code>timeout</code>
+      </td>
+      <td>number</td>
+      <td>Maximum wait time in milliseconds (default: 30000)</td>
+    </tr>
+  </tbody>
+</table>
+
+Provide either `selector` or `text`, not both.
+
+## screenshot
+
+Capture a PNG screenshot at a specific point during the recording.
+
+```json
+{ "action": "screenshot", "output": "hero.png" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>output</code>
+      </td>
+      <td>string</td>
+      <td>File path to save the screenshot</td>
+    </tr>
+  </tbody>
+</table>
+
+## drag
+
+Drag from one element to another.
+
+```json
+{
+  "action": "drag",
+  "from": { "text": "Item 1" },
+  "to": { "text": "Drop Zone" }
+}
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>from</code>
+      </td>
+      <td>object</td>
+      <td>
+        Source element (<code>text</code>, <code>selector</code>, or <code>within</code>)
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>to</code>
+      </td>
+      <td>object</td>
+      <td>
+        Target element (<code>text</code>, <code>selector</code>, or <code>within</code>)
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+## moveTo
+
+Move the cursor to an element without clicking.
+
+```json
+{ "action": "moveTo", "text": "Settings" }
+{ "action": "moveTo", "selector": ".nav-item" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to find the element by</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector to find the element</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+  </tbody>
+</table>
+
+## navigate
+
+Navigate to a new URL during a recording. Useful for multi-page flows where you need to visit a different route mid-video.
+
+```json
+{ "action": "navigate", "url": "/dashboard" }
+{ "action": "navigate", "url": "https://example.com/settings" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>url</code>
+      </td>
+      <td>string</td>
+      <td>
+        URL to navigate to (resolved against <code>baseUrl</code> if relative)
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+## hover
+
+Hover over an element, triggering any CSS hover states or JavaScript hover handlers.
+
+```json
+{ "action": "hover", "text": "Settings" }
+{ "action": "hover", "selector": ".dropdown-trigger" }
+{ "action": "hover", "text": "Menu", "within": ".nav" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to find the element by</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector to find the element</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+  </tbody>
+</table>
+
+Provide either `text` or `selector`, not both.
+
+## select
+
+Select a value from a `<select>` dropdown element.
+
+```json
+{ "action": "select", "value": "us", "selector": "#country" }
+{ "action": "select", "value": "dark", "text": "Theme" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>value</code>
+      </td>
+      <td>string</td>
+      <td>The option value to select</td>
+    </tr>
+    <tr>
+      <td>
+        <code>text</code>
+      </td>
+      <td>string</td>
+      <td>Text content to find the select element by</td>
+    </tr>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector to find the select element</td>
+    </tr>
+    <tr>
+      <td>
+        <code>within</code>
+      </td>
+      <td>string</td>
+      <td>Narrow the search to elements within this selector</td>
+    </tr>
+  </tbody>
+</table>
+
+Provide either `text` or `selector`, not both.

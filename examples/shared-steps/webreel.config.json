@@ -1,0 +1,15 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "include": ["./steps/setup.json"],
+  "videos": {
+    "shared-steps": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".page",
+      "steps": [
+        { "action": "click", "text": "Learn more about our platform", "delay": 1000 }
+      ]
+    }
+  }
+}

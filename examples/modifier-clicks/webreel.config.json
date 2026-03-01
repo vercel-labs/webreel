@@ -1,0 +1,26 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "modifier-clicks": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".file-list",
+      "defaultDelay": 400,
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "text": "document.pdf", "modifiers": ["cmd"] },
+        { "action": "click", "text": "notes.txt", "modifiers": ["cmd"] },
+        {
+          "action": "click",
+          "text": "archive.zip",
+          "within": ".file-list",
+          "modifiers": ["cmd"],
+          "delay": 800
+        },
+        { "action": "key", "key": "Backspace", "delay": 500 },
+        { "action": "pause", "ms": 1500 }
+      ]
+    }
+  }
+}

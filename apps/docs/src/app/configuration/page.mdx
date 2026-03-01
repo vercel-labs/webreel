@@ -1,0 +1,927 @@
+export const metadata = {
+  title: "Configuration",
+  description:
+    "How to configure webreel: config file format, videos, viewports, themes, includes, and environment variables.",
+};
+
+# Configuration
+
+webreel uses a config file in your project root. The default is `webreel.config.json` (JSONC; comments are supported). TypeScript (`webreel.config.ts`) and JavaScript (`webreel.config.js`, `.mjs`) configs are also supported via `defineConfig`.
+
+webreel automatically searches parent directories for a config file, so in a monorepo you can place the config at the root and run commands from subdirectories.
+
+## Example
+
+```json
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "outDir": "./videos",
+  "baseUrl": "https://myapp.com",
+  "viewport": { "width": 1920, "height": 1080 },
+  "defaultDelay": 500,
+  "videos": {
+    "hero": {
+      "url": "/",
+      "steps": [
+        { "action": "pause", "ms": 500 },
+        { "action": "click", "text": "Get Started", "delay": 1000 }
+      ]
+    },
+    "login": {
+      "url": "/login",
+      "output": "login-flow.mp4",
+      "steps": [
+        {
+          "action": "type",
+          "text": "user@example.com",
+          "target": { "selector": "#email" }
+        },
+        { "action": "click", "text": "Sign In" }
+      ]
+    }
+  }
+}
+```
+
+## Top-level options
+
+These fields apply as defaults to all videos and can be overridden per-video.
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>$schema</code>
+      </td>
+      <td>-</td>
+      <td>JSON Schema URL for IDE autocompletion</td>
+    </tr>
+    <tr>
+      <td>
+        <code>outDir</code>
+      </td>
+      <td>
+        <code>videos/</code>
+      </td>
+      <td>Default output directory for recorded videos (relative to config file)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>baseUrl</code>
+      </td>
+      <td>
+        <code>""</code>
+      </td>
+      <td>Prepended to relative video URLs</td>
+    </tr>
+    <tr>
+      <td>
+        <code>viewport</code>
+      </td>
+      <td>
+        <code>1080x1080</code>
+      </td>
+      <td>Default browser viewport dimensions</td>
+    </tr>
+    <tr>
+      <td>
+        <code>theme</code>
+      </td>
+      <td>-</td>
+      <td>Default cursor and HUD overlay customization</td>
+    </tr>
+    <tr>
+      <td>
+        <code>include</code>
+      </td>
+      <td>-</td>
+      <td>Array of step files prepended to all videos</td>
+    </tr>
+    <tr>
+      <td>
+        <code>defaultDelay</code>
+      </td>
+      <td>-</td>
+      <td>
+        Default delay (ms) applied after each step. For explicit waits, use a{" "}
+        <code>pause</code> step instead.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>clickDwell</code>
+      </td>
+      <td>random 80-180ms</td>
+      <td>
+        Milliseconds the cursor pauses after reaching its target before clicking. Set to{" "}
+        <code>0</code> to click instantly.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>sfx</code>
+      </td>
+      <td>-</td>
+      <td>Sound effects configuration for click and keystroke sounds</td>
+    </tr>
+    <tr>
+      <td>
+        <code>videos</code>
+      </td>
+      <td>required</td>
+      <td>Object mapping video names to their configurations</td>
+    </tr>
+  </tbody>
+</table>
+
+## Video options
+
+Each key in the `videos` object is the video name (used as the default output filename). Per-video values override top-level defaults.
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>url</code>
+      </td>
+      <td>required</td>
+      <td>URL to navigate to</td>
+    </tr>
+    <tr>
+      <td>
+        <code>baseUrl</code>
+      </td>
+      <td>inherited</td>
+      <td>Prepended to relative URLs</td>
+    </tr>
+    <tr>
+      <td>
+        <code>viewport</code>
+      </td>
+      <td>inherited</td>
+      <td>Browser viewport dimensions</td>
+    </tr>
+    <tr>
+      <td>
+        <code>zoom</code>
+      </td>
+      <td>-</td>
+      <td>CSS zoom level applied to the page</td>
+    </tr>
+    <tr>
+      <td>
+        <code>fps</code>
+      </td>
+      <td>
+        <code>60</code>
+      </td>
+      <td>Recording frame rate (1-120)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>quality</code>
+      </td>
+      <td>
+        <code>80</code>
+      </td>
+      <td>Output quality (1-100). Higher values produce larger files.</td>
+    </tr>
+    <tr>
+      <td>
+        <code>waitFor</code>
+      </td>
+      <td>-</td>
+      <td>CSS selector to wait for before starting steps</td>
+    </tr>
+    <tr>
+      <td>
+        <code>output</code>
+      </td>
+      <td>
+        <code>&lt;name&gt;.mp4</code>
+      </td>
+      <td>Output file path (.mp4, .gif, or .webm), resolved relative to outDir</td>
+    </tr>
+    <tr>
+      <td>
+        <code>thumbnail</code>
+      </td>
+      <td>
+        <code>
+          {"{"} time: 0 {"}"}
+        </code>
+      </td>
+      <td>
+        Object with <code>time</code> (seconds) and/or <code>enabled: false</code> to skip
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>include</code>
+      </td>
+      <td>inherited</td>
+      <td>Array of paths to JSON files whose steps are prepended</td>
+    </tr>
+    <tr>
+      <td>
+        <code>theme</code>
+      </td>
+      <td>inherited</td>
+      <td>Cursor and HUD overlay customization</td>
+    </tr>
+    <tr>
+      <td>
+        <code>defaultDelay</code>
+      </td>
+      <td>inherited</td>
+      <td>Default delay (ms) applied after each step</td>
+    </tr>
+    <tr>
+      <td>
+        <code>clickDwell</code>
+      </td>
+      <td>inherited</td>
+      <td>Milliseconds the cursor pauses before clicking</td>
+    </tr>
+    <tr>
+      <td>
+        <code>sfx</code>
+      </td>
+      <td>inherited</td>
+      <td>Sound effects configuration for click and keystroke sounds</td>
+    </tr>
+    <tr>
+      <td>
+        <code>steps</code>
+      </td>
+      <td>required</td>
+      <td>Array of action steps to execute</td>
+    </tr>
+  </tbody>
+</table>
+
+## delay and defaultDelay
+
+Every step (except `pause`) accepts an optional `delay` field: the number of milliseconds to wait after the step executes. Set `defaultDelay` at the top level or per-video to apply a default delay to all steps. A step's own `delay` overrides `defaultDelay`. For explicit waits that are not tied to a specific step, use a `pause` step instead.
+
+```json
+{
+  "defaultDelay": 500,
+  "videos": {
+    "hero": {
+      "url": "/",
+      "steps": [
+        { "action": "click", "text": "Get Started" },
+        { "action": "key", "key": "mod+a", "delay": 1000 },
+        { "action": "click", "text": "Submit" }
+      ]
+    }
+  }
+}
+```
+
+## clickDwell
+
+When the cursor reaches its target, it pauses briefly before clicking, just like a real human hovering to confirm they're in the right spot. By default, this dwell is a random 80-180ms. Set `clickDwell` to a fixed number of milliseconds, or `0` to click instantly.
+
+```json
+{
+  "clickDwell": 120,
+  "videos": {
+    "hero": {
+      "url": "/",
+      "clickDwell": 0,
+      "steps": [{ "action": "click", "text": "Get Started" }]
+    }
+  }
+}
+```
+
+## Step label and description
+
+Every step accepts an optional `label` field for HUD display and an optional `description` field for documentation. Labels are shown on-screen during recording (like keystroke labels). Descriptions are shown in `--verbose` output and `--dry-run` summaries.
+
+```json
+{
+  "action": "click",
+  "text": "Get Started",
+  "label": "CTA",
+  "description": "Click the CTA button on the hero section"
+}
+```
+
+## outDir
+
+Controls where output videos are written. Resolved relative to the config file location. Defaults to `videos/` when not specified. When a video does not specify `output`, it defaults to `<name>.mp4` inside `outDir`.
+
+```json
+{
+  "outDir": "./dist",
+  "videos": {
+    "hero": { "url": "https://example.com", "steps": [] }
+  }
+}
+```
+
+This writes `./dist/hero.mp4`. Without `outDir`, it would write `./videos/hero.mp4`.
+
+## baseUrl
+
+When set at the top level, all videos inherit it. Videos can override it.
+
+```json
+{
+  "baseUrl": "https://myapp.com",
+  "videos": {
+    "home": { "url": "/", "steps": [] },
+    "docs": { "url": "/docs", "steps": [] }
+  }
+}
+```
+
+## viewport
+
+Controls the browser window dimensions. Defaults to 1080x1080. Set at the top level to apply to all videos.
+
+```json
+{
+  "viewport": { "width": 1920, "height": 1080 }
+}
+```
+
+## zoom
+
+CSS zoom level applied to the page. Makes content appear larger within the viewport. For example, `"zoom": 2` doubles the size of all elements.
+
+## waitFor
+
+Element to wait for before starting the video steps. Accepts a CSS selector string or an object with `text` or `selector` (and optional `within` for scoping).
+
+```json
+{
+  "videos": {
+    "app": {
+      "url": "https://example.com",
+      "waitFor": "[data-ready]",
+      "steps": []
+    },
+    "dashboard": {
+      "url": "https://example.com/app",
+      "waitFor": { "text": "Welcome back" },
+      "steps": []
+    }
+  }
+}
+```
+
+## output
+
+Override the default output path per video. Resolved relative to `outDir`. Supported formats: `.mp4`, `.gif`, `.webm`.
+
+```json
+{
+  "videos": {
+    "hero": {
+      "url": "https://example.com",
+      "output": "hero-video.mp4",
+      "steps": []
+    }
+  }
+}
+```
+
+## thumbnail
+
+A PNG thumbnail is generated for every recorded video by default, using the first frame (time `0`). Use the `thumbnail` object to customize the time or disable generation.
+
+```json
+{
+  "videos": {
+    "hero": {
+      "url": "https://example.com",
+      "thumbnail": { "time": 2.5 },
+      "steps": []
+    },
+    "background": {
+      "url": "https://example.com",
+      "thumbnail": { "enabled": false },
+      "steps": []
+    }
+  }
+}
+```
+
+The thumbnail is written alongside the video as `<name>.png`.
+
+## include
+
+Prepend steps from other files. Can be set at the top level (applies to all videos) or per-video. Supports `.json`, `.ts`, `.js`, and `.mjs` files.
+
+```json
+{
+  "include": ["./shared/login-steps.json"],
+  "videos": {
+    "dashboard": {
+      "url": "/dashboard",
+      "steps": [{ "action": "click", "text": "Analytics" }]
+    }
+  }
+}
+```
+
+JSON include files should contain a `steps` array:
+
+```json
+{
+  "steps": [
+    { "action": "click", "text": "Sign In" },
+    { "action": "type", "text": "user@example.com", "target": { "selector": "#email" } }
+  ]
+}
+```
+
+TypeScript/JavaScript include files should export an object with a `steps` array:
+
+```ts
+export default {
+  steps: [
+    { action: "click", text: "Sign In" },
+    { action: "type", text: "user@example.com", target: { selector: "#email" } },
+  ],
+};
+```
+
+TypeScript includes require using `webreel record` (async loading). The sync `loadWebreelConfig` function only supports JSON includes.
+
+## theme
+
+Customize the cursor and keystroke overlay appearance. Can be set at the top level or per-video.
+
+```json
+{
+  "theme": {
+    "cursor": {
+      "image": "path/to/cursor.svg",
+      "size": 32,
+      "hotspot": "top-left"
+    },
+    "hud": {
+      "background": "rgba(0,0,0,0.7)",
+      "color": "white",
+      "fontSize": 48,
+      "fontFamily": "monospace",
+      "borderRadius": 12,
+      "position": "bottom"
+    }
+  }
+}
+```
+
+### Cursor options
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>image</code>
+      </td>
+      <td>built-in arrow</td>
+      <td>Path to a custom cursor SVG file</td>
+    </tr>
+    <tr>
+      <td>
+        <code>size</code>
+      </td>
+      <td>
+        <code>24</code>
+      </td>
+      <td>Cursor size in pixels</td>
+    </tr>
+    <tr>
+      <td>
+        <code>hotspot</code>
+      </td>
+      <td>
+        <code>"top-left"</code>
+      </td>
+      <td>
+        Where the click point lands: <code>"top-left"</code> for arrow cursors,{" "}
+        <code>"center"</code> for circle/dot cursors
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+### HUD options
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>background</code>
+      </td>
+      <td>-</td>
+      <td>CSS background color for the keystroke HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>color</code>
+      </td>
+      <td>-</td>
+      <td>CSS text color for the keystroke HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>fontSize</code>
+      </td>
+      <td>-</td>
+      <td>Font size in pixels for the keystroke HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>fontFamily</code>
+      </td>
+      <td>-</td>
+      <td>CSS font-family for the keystroke HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>borderRadius</code>
+      </td>
+      <td>-</td>
+      <td>Border radius in pixels for the keystroke HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>position</code>
+      </td>
+      <td>
+        <code>"bottom"</code>
+      </td>
+      <td>
+        Where the HUD appears: <code>"top"</code> or <code>"bottom"</code>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+## fps
+
+Recording frame rate. Defaults to 60. Lower values (e.g. 30) produce smaller files and are useful for GIF output.
+
+```json
+{
+  "videos": {
+    "hero": {
+      "url": "https://example.com",
+      "fps": 30,
+      "steps": []
+    }
+  }
+}
+```
+
+## quality
+
+Output quality on a scale of 1-100, where 100 is the highest quality and largest file size. Defaults to 80. Maps to CRF values internally for MP4 and WebM.
+
+```json
+{
+  "videos": {
+    "hero": {
+      "url": "https://example.com",
+      "quality": 95,
+      "steps": []
+    }
+  }
+}
+```
+
+## sfx
+
+Add click and keystroke sound effects to recorded videos. Set at the top level or per-video. Each key (`click` and `key`) accepts a built-in variant (`1`, `2`, `3`, or `4`) or a path to a custom audio file.
+
+```json
+{
+  "sfx": { "click": 1, "key": 2 },
+  "videos": {
+    "hero": {
+      "url": "/",
+      "steps": [{ "action": "click", "text": "Get Started" }]
+    },
+    "silent": {
+      "url": "/about",
+      "sfx": { "click": 3, "key": "./sounds/custom-key.mp3" },
+      "steps": []
+    }
+  }
+}
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>click</code>
+      </td>
+      <td>
+        <code>1</code>
+      </td>
+      <td>Click sound variant (1-4) or path to a custom audio file</td>
+    </tr>
+    <tr>
+      <td>
+        <code>key</code>
+      </td>
+      <td>
+        <code>1</code>
+      </td>
+      <td>Keystroke sound variant (1-4) or path to a custom audio file</td>
+    </tr>
+  </tbody>
+</table>
+
+When `sfx` is set, sound events are mixed into the final video. Custom file paths are resolved relative to the config file location. When `sfx` is not set, videos are silent.
+
+## Viewport presets
+
+In addition to explicit `{ "width": ..., "height": ... }` objects, the `viewport` field accepts named device presets:
+
+```json
+{
+  "viewport": "iphone-15",
+  "videos": {
+    "mobile": { "url": "/", "steps": [] }
+  }
+}
+```
+
+Available presets:
+
+<table>
+  <thead>
+    <tr>
+      <th>Preset</th>
+      <th>Width</th>
+      <th>Height</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>desktop</code>
+      </td>
+      <td>1920</td>
+      <td>1080</td>
+    </tr>
+    <tr>
+      <td>
+        <code>desktop-hd</code>
+      </td>
+      <td>2560</td>
+      <td>1440</td>
+    </tr>
+    <tr>
+      <td>
+        <code>laptop</code>
+      </td>
+      <td>1366</td>
+      <td>768</td>
+    </tr>
+    <tr>
+      <td>
+        <code>macbook-air</code>
+      </td>
+      <td>1440</td>
+      <td>900</td>
+    </tr>
+    <tr>
+      <td>
+        <code>macbook-pro</code>
+      </td>
+      <td>1512</td>
+      <td>982</td>
+    </tr>
+    <tr>
+      <td>
+        <code>ipad</code>
+      </td>
+      <td>1024</td>
+      <td>1366</td>
+    </tr>
+    <tr>
+      <td>
+        <code>ipad-pro</code>
+      </td>
+      <td>834</td>
+      <td>1194</td>
+    </tr>
+    <tr>
+      <td>
+        <code>ipad-mini</code>
+      </td>
+      <td>768</td>
+      <td>1024</td>
+    </tr>
+    <tr>
+      <td>
+        <code>iphone-15</code>
+      </td>
+      <td>393</td>
+      <td>852</td>
+    </tr>
+    <tr>
+      <td>
+        <code>iphone-15-pro-max</code>
+      </td>
+      <td>430</td>
+      <td>932</td>
+    </tr>
+    <tr>
+      <td>
+        <code>iphone-se</code>
+      </td>
+      <td>375</td>
+      <td>667</td>
+    </tr>
+    <tr>
+      <td>
+        <code>pixel-8</code>
+      </td>
+      <td>412</td>
+      <td>915</td>
+    </tr>
+    <tr>
+      <td>
+        <code>galaxy-s24</code>
+      </td>
+      <td>360</td>
+      <td>780</td>
+    </tr>
+  </tbody>
+</table>
+
+## Environment variables
+
+String values in JSON configs support environment variable substitution using `$VAR` or `${VAR}` syntax. Variables that are not set in the environment are left as-is.
+
+```json
+{
+  "baseUrl": "$BASE_URL",
+  "videos": {
+    "hero": {
+      "url": "${APP_PATH}/dashboard",
+      "steps": []
+    }
+  }
+}
+```
+
+```bash
+BASE_URL=https://staging.myapp.com webreel record
+```
+
+TypeScript configs can use `process.env` directly, so this feature is most useful for JSON configs.
+
+## Key reference
+
+The `key` field on `key` steps accepts single keys or combos joined with `+`. Use `mod` for the platform modifier (Cmd on macOS, Ctrl elsewhere).
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Keys</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Letters</td>
+      <td>
+        <code>a</code> - <code>z</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Digits</td>
+      <td>
+        <code>0</code> - <code>9</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Modifiers</td>
+      <td>
+        <code>mod</code>, <code>cmd</code>, <code>ctrl</code>, <code>shift</code>,{" "}
+        <code>alt</code>, <code>meta</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Navigation</td>
+      <td>
+        <code>ArrowUp</code>, <code>ArrowDown</code>, <code>ArrowLeft</code>,{" "}
+        <code>ArrowRight</code>, <code>Home</code>, <code>End</code>, <code>PageUp</code>,{" "}
+        <code>PageDown</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Editing</td>
+      <td>
+        <code>Enter</code>, <code>Tab</code>, <code>Escape</code>, <code>Backspace</code>,{" "}
+        <code>Delete</code>, <code>Space</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Function</td>
+      <td>
+        <code>F1</code> - <code>F12</code>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+Examples:
+
+```json
+{ "action": "key", "key": "mod+a" }
+{ "action": "key", "key": "cmd+shift+p" }
+{ "action": "key", "key": "Enter" }
+{ "action": "key", "key": "Escape" }
+```
+
+## defineConfig
+
+For TypeScript users, create a `webreel.config.ts` file and use the `defineConfig` helper for type-safe config authoring:
+
+```ts
+import { defineConfig } from "webreel";
+
+export default defineConfig({
+  videos: {
+    hero: {
+      url: "/",
+      steps: [{ action: "click", text: "Get Started" }],
+    },
+  },
+});
+```
+
+The `InputWebreelConfig` and `InputVideoConfig` types are also exported for use in your own code:
+
+```ts
+import type { InputWebreelConfig } from "webreel";
+```
+
+JavaScript configs (`webreel.config.js`, `webreel.config.mjs`) work the same way: just `export default` a config object.
+
+## Dry run
+
+Use `webreel record --dry-run` to print the fully resolved config (with defaults applied, includes merged) and step list without launching a browser. This is useful for debugging complex configs.
+
+```bash
+webreel record --dry-run
+webreel record hero --dry-run
+```
+
+## JSON Schema
+
+Add the `$schema` field to get autocompletion and validation in IDEs that support JSON Schema (VS Code, Cursor, JetBrains, etc.):
+
+```json
+{
+  "$schema": "https://webreel.dev/schema/v1.json"
+}
+```

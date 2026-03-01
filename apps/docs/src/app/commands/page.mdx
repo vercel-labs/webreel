@@ -1,0 +1,192 @@
+export const metadata = {
+  title: "Commands",
+  description:
+    "CLI commands available in webreel: init, record, preview, composite, and validate.",
+};
+
+# Commands
+
+## init
+
+Scaffold a new `webreel.config.json` file:
+
+```bash
+webreel init
+webreel init --name login-flow --url https://myapp.com
+webreel init --name hero -o hero.config.json
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>--name</code>
+      </td>
+      <td>Name for the video</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--url</code>
+      </td>
+      <td>Starting URL</td>
+    </tr>
+    <tr>
+      <td>
+        <code>-o</code>, <code>--output</code>
+      </td>
+      <td>Output file path (default: webreel.config.json)</td>
+    </tr>
+  </tbody>
+</table>
+
+## record
+
+Record videos:
+
+```bash
+webreel record
+webreel record hero login
+webreel record -c custom.config.json
+webreel record --watch
+```
+
+When run without arguments, webreel finds the nearest config file (searching parent directories) and records all videos. Provide video names to record specific videos only.
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>-c</code>, <code>--config</code>
+      </td>
+      <td>Path to config file (default: auto-discovered)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--verbose</code>
+      </td>
+      <td>Log each step as it executes (includes step descriptions)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--watch</code>
+      </td>
+      <td>Re-record when the config file changes</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--dry-run</code>
+      </td>
+      <td>Print the fully resolved config and step list without recording</td>
+    </tr>
+  </tbody>
+</table>
+
+## preview
+
+Run a video in a visible browser window without recording:
+
+```bash
+webreel preview
+webreel preview hero
+webreel preview -c custom.config.json hero
+```
+
+When run without a video name, the first video in the config is previewed.
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>-c</code>, <code>--config</code>
+      </td>
+      <td>Path to config file (default: webreel.config.json)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--verbose</code>
+      </td>
+      <td>Log each step as it executes</td>
+    </tr>
+  </tbody>
+</table>
+
+## composite
+
+Re-composite videos from stored raw recordings and timelines. This re-applies cursor and HUD overlays without re-recording, useful when you change theme settings or overlay configuration.
+
+```bash
+webreel composite
+webreel composite hero
+webreel composite -c custom.config.json
+```
+
+Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timelines/` after the first recording.
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>-c</code>, <code>--config</code>
+      </td>
+      <td>Path to config file (default: webreel.config.json)</td>
+    </tr>
+  </tbody>
+</table>
+
+## validate
+
+Check a config file for errors without running it:
+
+```bash
+webreel validate
+webreel validate -c custom.config.json
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>-c</code>, <code>--config</code>
+      </td>
+      <td>Path to config file (default: webreel.config.json)</td>
+    </tr>
+  </tbody>
+</table>
+
+## help
+
+```bash
+webreel --help
+webreel --version
+webreel record --help
+```
