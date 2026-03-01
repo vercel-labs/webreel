@@ -14,7 +14,7 @@ import {
 // Covers Linux (x64, arm64) and Windows (x64).
 const BTBN_BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest";
 
-function btbnAssetName(): string | null {
+export function btbnAssetName(): string | null {
   const { platform, arch } = process;
   if (platform === "linux" && arch === "arm64")
     return "ffmpeg-n7.1-latest-linuxarm64-gpl-7.1.tar.xz";
@@ -27,7 +27,7 @@ function btbnAssetName(): string | null {
 // Runs on ARM64 Macs via Rosetta 2.
 const EVERMEET_API = "https://evermeet.cx/ffmpeg/info/ffmpeg/release";
 
-function binaryName(): string {
+export function binaryName(): string {
   return process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
 }
 
@@ -40,7 +40,7 @@ function systemFfmpeg(): string | null {
   }
 }
 
-function findBinaryInDir(dir: string, name: string): string | null {
+export function findBinaryInDir(dir: string, name: string): string | null {
   if (!existsSync(dir)) return null;
   const direct = resolve(dir, name);
   if (existsSync(direct)) return direct;

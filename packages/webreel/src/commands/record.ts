@@ -10,7 +10,7 @@ import {
 import { runVideo } from "../lib/runner.js";
 import type { WebreelConfig } from "../lib/types.js";
 
-function collectIncludePaths(config: WebreelConfig, configPath: string): string[] {
+export function collectIncludePaths(config: WebreelConfig, configPath: string): string[] {
   const configDir = getConfigDir(configPath);
   const paths: string[] = [];
   const topIncludes = config.include ?? [];

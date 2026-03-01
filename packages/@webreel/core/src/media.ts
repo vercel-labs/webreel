@@ -26,7 +26,7 @@ export interface SfxConfig {
   key?: 1 | 2 | 3 | 4 | string;
 }
 
-function resolveSfxPath(
+export function resolveSfxPath(
   value: 1 | 2 | 3 | 4 | string | undefined,
   prefix: "click" | "key",
 ): string {
@@ -45,7 +45,7 @@ export function ensureSoundAssets(sfx?: SfxConfig): {
   };
 }
 
-function buildAudioMixArgs(
+export function buildAudioMixArgs(
   videoInput: string,
   events: SoundEvent[],
   durationSec: number,

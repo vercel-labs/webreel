@@ -32,7 +32,7 @@ const CHROME_PATHS: Record<string, string[]> = {
   ],
 };
 
-function cftPlatform(): string {
+export function cftPlatform(): string {
   const { platform, arch } = process;
   if (platform === "darwin" && arch === "arm64") return "mac-arm64";
   if (platform === "darwin") return "mac-x64";

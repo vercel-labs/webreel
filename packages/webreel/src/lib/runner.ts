@@ -30,7 +30,7 @@ import {
 } from "@webreel/core";
 import type { VideoConfig, Step, ElementTarget } from "./types.js";
 
-function formatStep(i: number, step: Step): string {
+export function formatStep(i: number, step: Step): string {
   const desc = "description" in step && step.description ? `: ${step.description}` : "";
   switch (step.action) {
     case "pause":
@@ -64,7 +64,7 @@ function formatStep(i: number, step: Step): string {
   }
 }
 
-function resolveKeyTarget(target: string | ElementTarget): string {
+export function resolveKeyTarget(target: string | ElementTarget): string {
   if (typeof target === "string") return target;
   return target.selector ?? "";
 }
@@ -90,14 +90,17 @@ async function resolveTarget(
   return box;
 }
 
-function resolveUrl(url: string, baseUrl: string, configDir: string): string {
+export function resolveUrl(url: string, baseUrl: string, configDir: string): string {
   if (url.startsWith("http") || url.startsWith("file://")) return url;
   const combined = `${baseUrl}${url}`;
   if (combined.startsWith("http") || combined.startsWith("file://")) return combined;
   return pathToFileURL(resolve(configDir, combined)).href;
 }
 
-function randomPointInBox(box: BoundingBox, spread = 0.25): { x: number; y: number } {
+export function randomPointInBox(
+  box: BoundingBox,
+  spread = 0.25,
+): { x: number; y: number } {
   const center = 0.5 - spread / 2;
   return {
     x: box.x + box.width * (center + Math.random() * spread),

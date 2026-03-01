@@ -253,14 +253,14 @@ async function cursorUp(ctx: RecordingContext, client: CDPClient): Promise<void>
   });
 }
 
-function resolveMod(mod: string): string {
+export function resolveMod(mod: string): string {
   if (mod.toLowerCase() === "mod") {
     return process.platform === "darwin" ? "cmd" : "ctrl";
   }
   return mod;
 }
 
-function modifierFlag(mod: string): number {
+export function modifierFlag(mod: string): number {
   switch (resolveMod(mod).toLowerCase()) {
     case "alt":
       return 1;
@@ -277,14 +277,14 @@ function modifierFlag(mod: string): number {
   }
 }
 
-function modifiersToFlag(mods?: string[]): number {
+export function modifiersToFlag(mods?: string[]): number {
   if (!mods) return 0;
   let flag = 0;
   for (const m of mods) flag |= modifierFlag(m.toLowerCase());
   return flag;
 }
 
-function modLabel(mod: string): string {
+export function modLabel(mod: string): string {
   const m = resolveMod(mod).toLowerCase();
   if (m === "cmd" || m === "meta") return "\u2318";
   if (m === "ctrl" || m === "control") return "Ctrl";
@@ -300,7 +300,7 @@ interface ModKeyInfo {
   location: number;
 }
 
-function modKeyInfo(mod: string): ModKeyInfo | null {
+export function modKeyInfo(mod: string): ModKeyInfo | null {
   switch (resolveMod(mod).toLowerCase()) {
     case "cmd":
     case "meta":
@@ -472,7 +472,7 @@ export async function clickAt(
   }
 }
 
-const KEY_CODES: Record<string, { code: string; keyCode: number }> = {
+export const KEY_CODES: Record<string, { code: string; keyCode: number }> = {
   Delete: { code: "Delete", keyCode: 46 },
   Backspace: { code: "Backspace", keyCode: 8 },
   Escape: { code: "Escape", keyCode: 27 },
@@ -491,7 +491,7 @@ const KEY_CODES: Record<string, { code: string; keyCode: number }> = {
   z: { code: "KeyZ", keyCode: 90 },
 };
 
-const SHORTCUT_COMMANDS: Record<string, string[]> = {
+export const SHORTCUT_COMMANDS: Record<string, string[]> = {
   "meta+a": ["selectAll"],
   "meta+c": ["copy"],
   "meta+x": ["cut"],
@@ -506,7 +506,10 @@ const SHORTCUT_COMMANDS: Record<string, string[]> = {
   "ctrl+shift+z": ["redo"],
 };
 
-function resolveCommands(modifiers: string[], mainKey: string): string[] | undefined {
+export function resolveCommands(
+  modifiers: string[],
+  mainKey: string,
+): string[] | undefined {
   const parts = modifiers
     .map((m) => {
       const lower = resolveMod(m).toLowerCase();
@@ -584,7 +587,7 @@ export async function pressKey(
   }
 }
 
-const CHAR_CODES: Record<string, { code: string; keyCode: number }> = {
+export const CHAR_CODES: Record<string, { code: string; keyCode: number }> = {
   " ": { code: "Space", keyCode: 32 },
   "0": { code: "Digit0", keyCode: 48 },
   "1": { code: "Digit1", keyCode: 49 },
