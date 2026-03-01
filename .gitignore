@@ -12,3 +12,4 @@ coverage
 *.tsbuildinfo
 *.log
 package-lock.json
+demo-reel.mp4

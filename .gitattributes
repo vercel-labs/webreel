@@ -1,5 +1,4 @@
-*.mp4 filter=lfs diff=lfs merge=lfs -text
-*.gif filter=lfs diff=lfs merge=lfs -text
-*.webm filter=lfs diff=lfs merge=lfs -text
-*.mp3 filter=lfs diff=lfs merge=lfs -text
-*.png filter=lfs diff=lfs merge=lfs -text
+examples/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+examples/**/*.gif filter=lfs diff=lfs merge=lfs -text
+examples/**/*.webm filter=lfs diff=lfs merge=lfs -text
+examples/**/*.png filter=lfs diff=lfs merge=lfs -text
