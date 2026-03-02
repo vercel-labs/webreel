@@ -1,6 +1,6 @@
 {
   "name": "webreel",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Record scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, and sound effects.",
   "homepage": "https://webreel.dev",
   "repository": {
