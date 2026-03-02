@@ -1,5 +1,11 @@
 # @webreel/core
 
+## 0.1.4
+
+### Patch Changes
+
+- Fix recording hang after final step. The recorder now properly resolves when all steps complete, preventing indefinite hangs during video capture.
+
 ## 0.1.3
 
 ### Patch Changes
