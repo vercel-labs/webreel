@@ -29,6 +29,8 @@ export class Recorder {
   private timeline: InteractionTimeline | null = null;
   private ctx: RecordingContext | null = null;
   private framesDir: string | null = null;
+  private stopResolve: (() => void) | null = null;
+  private stoppedPromise: Promise<void> | null = null;
 
   constructor(
     outputWidth = DEFAULT_VIEWPORT_SIZE,
@@ -128,10 +130,15 @@ export class Recorder {
     stdin.on("drain", resolveDrain);
     this.ffmpegProcess.on("close", resolveDrain);
 
+    this.stoppedPromise = new Promise<void>((resolve) => {
+      this.stopResolve = resolve;
+    });
+
     this.capturePromise = this.captureLoop(client);
   }
 
   private async writeFrame(buffer: Buffer): Promise<void> {
+    if (!this.running) return;
     const stdin = this.ffmpegProcess?.stdin;
     if (!stdin?.writable) {
       this.droppedFrames++;
@@ -145,6 +152,12 @@ export class Recorder {
     }
   }
 
+  private async raceStop<T>(promise: Promise<T>): Promise<T | null> {
+    const stopped = this.stoppedPromise!.then((): null => null);
+    const result = await Promise.race([promise, stopped]);
+    return result;
+  }
+
   private async captureLoop(client: CDPClient) {
     let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
@@ -154,16 +167,23 @@ export class Recorder {
         if (this.timeline) {
           this.timeline.tick();
         } else {
-          await client.Runtime.evaluate({
-            expression: "window.__tickCursor&&window.__tickCursor()",
-          });
+          const evalResult = await this.raceStop(
+            client.Runtime.evaluate({
+              expression: "window.__tickCursor&&window.__tickCursor()",
+            }),
+          );
+          if (!evalResult) break;
         }
-        const { data } = await client.Page.captureScreenshot({
-          format: "jpeg",
-          quality: 60,
-          optimizeForSpeed: true,
-        });
-        const buffer = Buffer.from(data, "base64");
+        const screenshotResult = await this.raceStop(
+          client.Page.captureScreenshot({
+            format: "jpeg",
+            quality: 60,
+            optimizeForSpeed: true,
+          }),
+        );
+        if (!screenshotResult) break;
+
+        const buffer = Buffer.from(screenshotResult.data, "base64");
         const now = Date.now();
         const elapsed = now - lastFrameTime;
         const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
@@ -207,6 +227,16 @@ export class Recorder {
   async stop() {
     this.running = false;
     if (this.ctx) this.ctx.setRecorder(null);
+
+    if (this.drainResolve) {
+      this.drainResolve();
+      this.drainResolve = null;
+    }
+    if (this.stopResolve) {
+      this.stopResolve();
+      this.stopResolve = null;
+    }
+
     await this.capturePromise;
 
     if (this.droppedFrames > 0) {
@@ -215,6 +245,14 @@ export class Recorder {
 
     if (this.ffmpegProcess) {
       const proc = this.ffmpegProcess;
+      const FFMPEG_CLOSE_TIMEOUT_MS = 10_000;
+      const killTimer = setTimeout(() => {
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          // Process may have already exited
+        }
+      }, FFMPEG_CLOSE_TIMEOUT_MS);
       await new Promise<void>((res) => {
         if (proc.exitCode !== null) {
           res();
@@ -228,6 +266,7 @@ export class Recorder {
           res();
         }
       });
+      clearTimeout(killTimer);
       this.ffmpegProcess = null;
     }
 

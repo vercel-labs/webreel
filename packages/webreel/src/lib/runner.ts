@@ -151,6 +151,7 @@ export async function runVideo(
 
   const chrome = await launchChrome({ headless: shouldRecord });
   let clientRef: CDPClient | null = null;
+  let recorder: Recorder | null = null;
 
   try {
     const client = await connectCDP(chrome.port);
@@ -202,7 +203,6 @@ export async function runVideo(
       }
     }
 
-    let recorder: Recorder | null = null;
     let timeline: InteractionTimeline | null = null;
     const outputPath =
       config.output ?? resolve(configDir, "videos", `${config.name}.mp4`);
@@ -416,6 +416,7 @@ export async function runVideo(
     if (recorder) {
       const cleanVideoPath = recorder.getTempVideoPath();
       await recorder.stop();
+      recorder = null;
 
       if (timeline) {
         const timelineData = timeline.toJSON();
@@ -444,6 +445,13 @@ export async function runVideo(
       console.log(`Preview complete: ${config.name}`);
     }
   } finally {
+    if (recorder) {
+      try {
+        await recorder.stop();
+      } catch (err) {
+        console.warn("Failed to stop recorder:", err);
+      }
+    }
     if (clientRef) {
       try {
         await clientRef.close();
