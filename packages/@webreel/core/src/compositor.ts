@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { resolve, extname } from "node:path";
 import sharp from "sharp";
 import type { TimelineData } from "./timeline.js";
+import { MODIFIER_ICONS } from "./types.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
 import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
 
@@ -301,6 +302,11 @@ async function renderOverlayFrame(
   return result;
 }
 
+function parseKeyPadding(padding: string, zoom: number): { v: number; h: number } {
+  const parts = padding.split(/\s+/).map((p) => Math.round(parseFloat(p) * zoom));
+  return { v: parts[0], h: parts[1] ?? parts[0] };
+}
+
 async function renderHudOverlay(
   labels: string[],
   viewportWidth: number,
@@ -313,32 +319,6 @@ async function renderHudOverlay(
   const cached = hudCache.get(cacheKey);
   if (cached) return cached;
 
-  const fontSize = Math.round(hudConfig.fontSize * zoom);
-  const padding = Math.round(16 * zoom);
-  const gap = Math.round(14 * zoom);
-  const borderRadius = Math.round(hudConfig.borderRadius * zoom);
-  const hPad = Math.round(36 * zoom);
-
-  const charWidth = fontSize * 0.6;
-  const totalTextWidth = labels.reduce((sum, l) => sum + l.length * charWidth, 0);
-  const hudWidth = Math.round(
-    totalTextWidth + padding * 2 + gap * (labels.length - 1) + hPad * 2,
-  );
-  const hudHeight = Math.round(fontSize * 1.6 + padding * 2);
-
-  const labelSpans = labels
-    .map((l) => {
-      const escaped = l
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      return `<tspan>${escaped}</tspan>`;
-    })
-    .join(`<tspan dx="${gap}"> </tspan>`);
-
-  const textY = Math.round(hudHeight / 2 + fontSize * 0.35);
-  const textX = Math.round(hudWidth / 2);
-
   const escAttr = (s: string) =>
     s
       .replace(/&/g, "&amp;")
@@ -346,12 +326,69 @@ async function renderHudOverlay(
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+  const fontSize = Math.round(hudConfig.fontSize * zoom);
+  const gap = Math.round(10 * zoom);
+  const keyBorderRadius = Math.round(hudConfig.keyBorderRadius * zoom);
+  const keyPad = parseKeyPadding(hudConfig.keyPadding, zoom);
+
+  const shadowPad = Math.round(20 * zoom);
+  const shadowOffset = Math.round(4 * zoom);
+  const shadowBlur = Math.round(8 * zoom);
+
+  const charWidth = fontSize * 0.6;
+  const iconSize = Math.round(fontSize * 0.75);
+  const capHeight = fontSize + keyPad.v * 2;
+  const keyCaps = labels.map((l) => {
+    const isIcon = l in MODIFIER_ICONS;
+    const contentWidth = isIcon ? iconSize : Math.round(l.length * charWidth);
+    const capWidth = contentWidth + keyPad.h * 2;
+    return { label: l, isIcon, contentWidth, capWidth };
+  });
+
+  const totalKeysWidth = keyCaps.reduce((s, k) => s + k.capWidth, 0);
+  const innerWidth = totalKeysWidth + gap * (labels.length - 1);
+  const hudWidth = innerWidth + shadowPad * 2;
+  const hudHeight = capHeight + shadowPad * 2;
+
+  let keyRects = "";
+  let x = shadowPad;
+  const capY = shadowPad;
+
+  for (const cap of keyCaps) {
+    keyRects += `<rect x="${x}" y="${capY}" width="${cap.capWidth}" height="${capHeight}" rx="${keyBorderRadius}" ry="${keyBorderRadius}" fill="${escAttr(hudConfig.keyBackground)}" stroke="${escAttr(hudConfig.keyBorder)}" stroke-width="1" filter="url(#keyShadow)" />`;
+
+    if (cap.isIcon) {
+      const icon = MODIFIER_ICONS[cap.label];
+      const ix = Math.round(x + (cap.capWidth - iconSize) / 2);
+      const iy = Math.round(capY + (capHeight - iconSize) / 2);
+      const pathEls = icon.paths
+        .map(
+          (p) =>
+            `<path d="${p}" fill="none" stroke="${escAttr(hudConfig.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+        )
+        .join("");
+      keyRects += `<svg x="${ix}" y="${iy}" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24">${pathEls}</svg>`;
+    } else {
+      const escaped = cap.label
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const textX = Math.round(x + cap.capWidth / 2);
+      const textY = Math.round(capY + capHeight / 2 + fontSize * 0.35);
+      keyRects += `<text x="${textX}" y="${textY}" text-anchor="middle" font-family="${escAttr(hudConfig.fontFamily)}" font-size="${fontSize}" font-weight="500" letter-spacing="0.02em" fill="${escAttr(hudConfig.color)}">${escaped}</text>`;
+    }
+
+    x += cap.capWidth + gap;
+  }
+
   const svgOverlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${hudWidth}" height="${hudHeight}">
-      <rect x="0" y="0" width="${hudWidth}" height="${hudHeight}" rx="${borderRadius}" ry="${borderRadius}" fill="${escAttr(hudConfig.background)}" />
-      <text x="${textX}" y="${textY}" text-anchor="middle"
-        font-family="${escAttr(hudConfig.fontFamily)}" font-size="${fontSize}" font-weight="500"
-        fill="${escAttr(hudConfig.color)}">${labelSpans}</text>
-    </svg>`;
+    <defs>
+      <filter id="keyShadow" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="${shadowOffset}" stdDeviation="${shadowBlur}" flood-color="rgba(0,0,0,0.35)" flood-opacity="1" />
+      </filter>
+    </defs>
+    ${keyRects}
+  </svg>`;
 
   const hudPng = await sharp(Buffer.from(svgOverlay)).png().toBuffer();
   const left = Math.round((viewportWidth - hudWidth) / 2);

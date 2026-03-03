@@ -143,7 +143,7 @@
               "type": "number",
               "minimum": 1,
               "description": "Font size in pixels for the keystroke HUD.",
-              "default": 56
+              "default": 48
             },
             "fontFamily": {
               "type": "string",
@@ -153,13 +153,46 @@
               "type": "number",
               "minimum": 0,
               "description": "Border radius in pixels for the keystroke HUD.",
-              "default": 18
+              "default": 16
             },
             "position": {
               "type": "string",
               "enum": ["top", "bottom"],
               "description": "Position of the keystroke HUD.",
               "default": "bottom"
+            },
+            "blur": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Backdrop blur radius in pixels for the HUD container (live preview only).",
+              "default": 20
+            },
+            "border": {
+              "type": "string",
+              "description": "CSS border color for the HUD container."
+            },
+            "shadow": {
+              "type": "string",
+              "description": "CSS box-shadow for the HUD container."
+            },
+            "keyBackground": {
+              "type": "string",
+              "description": "CSS background for individual key caps inside the HUD."
+            },
+            "keyBorder": {
+              "type": "string",
+              "description": "CSS border color for individual key caps inside the HUD."
+            },
+            "keyBorderRadius": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Border radius in pixels for individual key caps.",
+              "default": 10
+            },
+            "keyPadding": {
+              "type": "string",
+              "description": "CSS padding for individual key caps (e.g. \"8px 16px\").",
+              "default": "8px 16px"
             }
           },
           "additionalProperties": false

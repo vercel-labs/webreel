@@ -46,31 +46,50 @@ describe("injectOverlays", () => {
     expect(calls[0].expression).toContain("margin-top:-16px");
   });
 
-  it("uses default HUD theme values when not overridden", async () => {
-    const { client, calls } = createMockClient();
-    await injectOverlays(client);
-    const expr = calls[0].expression;
-    expect(expr).toContain(`background:${DEFAULT_HUD_THEME.background}`);
-    expect(expr).toContain(`border-radius:" + z(${DEFAULT_HUD_THEME.borderRadius})`);
-  });
-
   it("uses custom HUD theme values", async () => {
     const { client, calls } = createMockClient();
     const theme: OverlayTheme = {
       hud: {
-        background: "red",
         color: "blue",
         fontSize: 32,
-        borderRadius: 8,
         position: "top",
       },
     };
     await injectOverlays(client, theme);
     const expr = calls[0].expression;
-    expect(expr).toContain("background:red");
     expect(expr).toContain("color: blue");
-    expect(expr).toContain('border-radius:" + z(8)');
     expect(expr).toContain('"top:"');
+  });
+
+  it("applies backdrop-filter blur on key caps", async () => {
+    const { client, calls } = createMockClient();
+    await injectOverlays(client);
+    const expr = calls[0].expression;
+    expect(expr).toContain(`backdrop-filter: blur(${DEFAULT_HUD_THEME.blur}px)`);
+    expect(expr).toContain(`-webkit-backdrop-filter: blur(${DEFAULT_HUD_THEME.blur}px)`);
+  });
+
+  it("styles key caps with background and border", async () => {
+    const { client, calls } = createMockClient();
+    await injectOverlays(client);
+    const expr = calls[0].expression;
+    expect(expr).toContain(`background: ${DEFAULT_HUD_THEME.keyBackground}`);
+    expect(expr).toContain(`border: 1px solid ${DEFAULT_HUD_THEME.keyBorder}`);
+    expect(expr).toContain("box-shadow:");
+  });
+
+  it("container has no background (transparent layout wrapper)", async () => {
+    const { client, calls } = createMockClient();
+    await injectOverlays(client);
+    const expr = calls[0].expression;
+    expect(expr).not.toMatch(/keys\.style\.cssText[^;]*background:/);
+  });
+
+  it("includes transition for smooth animation", async () => {
+    const { client, calls } = createMockClient();
+    await injectOverlays(client);
+    const expr = calls[0].expression;
+    expect(expr).toContain("transition:opacity 0.2s ease,transform 0.2s ease");
   });
 
   it("uses custom cursor SVG", async () => {
@@ -111,6 +130,13 @@ describe("showKeys", () => {
     expect(expr).toContain("&lt;");
     expect(expr).toContain("&gt;");
   });
+
+  it("sets transform to visible position on show", async () => {
+    const { client, calls } = createMockClient();
+    await showKeys(client, ["A"]);
+    const expr = calls[0].expression;
+    expect(expr).toContain("translateX(-50%) translateY(0)");
+  });
 });
 
 describe("hideKeys", () => {
@@ -118,5 +144,11 @@ describe("hideKeys", () => {
     const { client, calls } = createMockClient();
     await hideKeys(client);
     expect(calls[0].expression).toContain('opacity = "0"');
+  });
+
+  it("sets transform to offset position on hide", async () => {
+    const { client, calls } = createMockClient();
+    await hideKeys(client);
+    expect(calls[0].expression).toContain("translateX(-50%) translateY(8px)");
   });
 });
