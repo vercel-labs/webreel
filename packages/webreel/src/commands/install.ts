@@ -1,14 +1,17 @@
 import { Command } from "commander";
 import { existsSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { resolve } from "node:path";
-import { ensureChrome, ensureHeadlessShell, ensureFfmpeg } from "@webreel/core";
-
-const BIN_DIR = resolve(homedir(), ".webreel", "bin");
+import {
+  ensureChrome,
+  ensureHeadlessShell,
+  ensureFfmpeg,
+  CHROME_CACHE_DIR,
+  HEADLESS_SHELL_CACHE_DIR,
+  FFMPEG_CACHE_DIR,
+} from "@webreel/core";
 
 interface InstallStep {
   label: string;
-  subdir: string;
+  cacheDir: string;
   envVar?: string;
   run: () => Promise<string>;
 }
@@ -16,16 +19,22 @@ interface InstallStep {
 const STEPS: InstallStep[] = [
   {
     label: "Chrome (headless shell)",
-    subdir: "chrome-headless-shell",
+    cacheDir: HEADLESS_SHELL_CACHE_DIR,
+    envVar: "CHROME_HEADLESS_SHELL_PATH",
     run: ensureHeadlessShell,
   },
   {
     label: "Chrome (full, for preview)",
-    subdir: "chrome",
+    cacheDir: CHROME_CACHE_DIR,
     envVar: "CHROME_PATH",
     run: ensureChrome,
   },
-  { label: "ffmpeg", subdir: "ffmpeg", envVar: "FFMPEG_PATH", run: ensureFfmpeg },
+  {
+    label: "ffmpeg",
+    cacheDir: FFMPEG_CACHE_DIR,
+    envVar: "FFMPEG_PATH",
+    run: ensureFfmpeg,
+  },
 ];
 
 export const installCommand = new Command("install")
@@ -41,7 +50,7 @@ export const installCommand = new Command("install")
         continue;
       }
 
-      const cacheDir = resolve(BIN_DIR, step.subdir);
+      const cacheDir = step.cacheDir;
 
       if (opts.force) {
         rmSync(cacheDir, { recursive: true, force: true });

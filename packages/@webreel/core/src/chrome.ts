@@ -5,6 +5,14 @@ import { homedir, tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { fetchJson, downloadAndExtract } from "./download.js";
 
+export const CHROME_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "chrome");
+export const HEADLESS_SHELL_CACHE_DIR = resolve(
+  homedir(),
+  ".webreel",
+  "bin",
+  "chrome-headless-shell",
+);
+
 const CfT_MANIFEST_URL =
   "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
 
@@ -108,9 +116,8 @@ function findChrome(): string {
 export async function ensureChrome(): Promise<string> {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
 
-  const cacheDir = resolve(homedir(), ".webreel", "bin", "chrome");
-  if (existsSync(cacheDir)) {
-    const cached = cftExecutablePath(cacheDir);
+  if (existsSync(CHROME_CACHE_DIR)) {
+    const cached = cftExecutablePath(CHROME_CACHE_DIR);
     if (cached) return cached;
   }
 
@@ -122,9 +129,9 @@ export async function ensureChrome(): Promise<string> {
     );
     if (!entry) throw new Error(`No Chrome for Testing build for ${platform}`);
 
-    await downloadAndExtract(entry.url, cacheDir, "Chrome for Testing");
+    await downloadAndExtract(entry.url, CHROME_CACHE_DIR, "Chrome for Testing");
 
-    const exe = cftExecutablePath(cacheDir);
+    const exe = cftExecutablePath(CHROME_CACHE_DIR);
     if (exe) return exe;
 
     throw new Error("Downloaded Chrome but could not locate executable");
@@ -141,9 +148,11 @@ export async function ensureChrome(): Promise<string> {
 }
 
 export async function ensureHeadlessShell(): Promise<string> {
-  const cacheDir = resolve(homedir(), ".webreel", "bin", "chrome-headless-shell");
-  if (existsSync(cacheDir)) {
-    const cached = headlessShellPath(cacheDir);
+  if (process.env.CHROME_HEADLESS_SHELL_PATH)
+    return process.env.CHROME_HEADLESS_SHELL_PATH;
+
+  if (existsSync(HEADLESS_SHELL_CACHE_DIR)) {
+    const cached = headlessShellPath(HEADLESS_SHELL_CACHE_DIR);
     if (cached) return cached;
   }
 
@@ -153,9 +162,9 @@ export async function ensureHeadlessShell(): Promise<string> {
   const entry = entries?.find((d) => d.platform === platform);
   if (!entry) throw new Error(`No chrome-headless-shell build for ${platform}`);
 
-  await downloadAndExtract(entry.url, cacheDir, "chrome-headless-shell");
+  await downloadAndExtract(entry.url, HEADLESS_SHELL_CACHE_DIR, "chrome-headless-shell");
 
-  const exe = headlessShellPath(cacheDir);
+  const exe = headlessShellPath(HEADLESS_SHELL_CACHE_DIR);
   if (exe) return exe;
   throw new Error("Downloaded chrome-headless-shell but could not locate executable");
 }

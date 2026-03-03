@@ -14,6 +14,8 @@ export {
   launchChrome,
   ensureChrome,
   ensureHeadlessShell,
+  CHROME_CACHE_DIR,
+  HEADLESS_SHELL_CACHE_DIR,
   type ChromeInstance,
   type LaunchChromeOptions,
 } from "./chrome.js";
@@ -37,5 +39,5 @@ export {
 export { Recorder } from "./recorder.js";
 export { InteractionTimeline, type TimelineData } from "./timeline.js";
 export { compose, type ComposeOptions } from "./compositor.js";
-export { ensureFfmpeg } from "./ffmpeg.js";
+export { ensureFfmpeg, FFMPEG_CACHE_DIR } from "./ffmpeg.js";
 export { extractThumbnail, type SfxConfig } from "./media.js";
