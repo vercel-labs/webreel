@@ -114,6 +114,15 @@ webreel preview
 webreel preview hero
 ```
 
+### `webreel install`
+
+Download Chrome and ffmpeg to `~/.webreel`. Both are also auto-downloaded on first run. Use `--force` to fix corrupted or broken binaries.
+
+```bash
+webreel install
+webreel install --force
+```
+
 ### `webreel validate`
 
 Check config files for errors without running them.

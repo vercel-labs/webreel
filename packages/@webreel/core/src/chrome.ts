@@ -105,7 +105,7 @@ function findChrome(): string {
   );
 }
 
-async function ensureChrome(): Promise<string> {
+export async function ensureChrome(): Promise<string> {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
 
   const cacheDir = resolve(homedir(), ".webreel", "bin", "chrome");
@@ -140,7 +140,7 @@ async function ensureChrome(): Promise<string> {
   }
 }
 
-async function ensureHeadlessShell(): Promise<string> {
+export async function ensureHeadlessShell(): Promise<string> {
   const cacheDir = resolve(homedir(), ".webreel", "bin", "chrome-headless-shell");
   if (existsSync(cacheDir)) {
     const cached = headlessShellPath(cacheDir);

@@ -10,7 +10,13 @@ export {
   DEFAULT_HUD_THEME,
 } from "./types.js";
 export { connectCDP } from "./cdp.js";
-export { launchChrome, type ChromeInstance, type LaunchChromeOptions } from "./chrome.js";
+export {
+  launchChrome,
+  ensureChrome,
+  ensureHeadlessShell,
+  type ChromeInstance,
+  type LaunchChromeOptions,
+} from "./chrome.js";
 export { injectOverlays, showKeys, hideKeys, type OverlayTheme } from "./overlays.js";
 export {
   RecordingContext,

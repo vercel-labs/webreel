@@ -137,6 +137,15 @@ webreel composite
 webreel composite hero
 ```
 
+### Install
+
+Download Chrome and ffmpeg to `~/.webreel`. Both are also auto-downloaded on first run. Use `--force` to fix corrupted or broken binaries.
+
+```bash
+webreel install
+webreel install --force
+```
+
 ### Validate
 
 Check config files for errors without running them:
