@@ -1,210 +1,263 @@
 ---
 name: webreel
-description: Best practices and architecture reference for the webreel monorepo. Use when working with webreel source code, adding features, fixing bugs, or extending the CLI or core library. Covers project structure, the @webreel/core API, the webreel CLI, and the JSON config format.
+description: Create and record scripted browser demo videos with webreel. Generates MP4, GIF, or WebM recordings with cursor animation, keystroke overlays, and sound effects from a JSON config. Use when the user wants to record a demo, create a browser video, edit a webreel config, generate a screen recording, preview a demo, or work with webreel in any way.
 ---
 
 # webreel
 
-Record scripted browser videos as MP4/GIF/WebM files with sound effects, cursor animation, and keystroke overlays. Steps are defined in JSON configs and executed via Chrome DevTools Protocol.
+webreel records scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, and sound effects. You define steps in a JSON config, and webreel drives headless Chrome, captures frames, and encodes with ffmpeg.
 
-## Project structure
+## Quick start
 
-pnpm monorepo with two packages:
+```bash
+# Scaffold a config
+npx webreel init --name my-demo --url https://example.com
 
+# Edit webreel.config.json with your steps
+
+# Preview in a visible browser (no recording)
+npx webreel preview my-demo
+
+# Record the video
+npx webreel record my-demo
 ```
-packages/
-  @webreel/core/     # Chrome automation, recording, and overlays
-  webreel/           # CLI that records videos from JSON configs
+
+Output lands in `videos/` by default (configurable via `outDir`).
+
+## CLI commands
+
+### init
+
+Scaffold a new `webreel.config.json`.
+
+```bash
+webreel init
+webreel init --name login-flow --url https://myapp.com
+webreel init --name hero -o hero.config.json
 ```
 
-`webreel` depends on `@webreel/core` via `workspace:*`.
+Flags: `--name` (video name), `--url` (starting URL), `-o, --output` (output file path).
 
-Both packages are ESM (`"type": "module"`) and compiled with `tsc`. Import paths use `.js` extensions.
+### record
 
-## @webreel/core
+Record one or more videos.
 
-Exports from `src/index.ts`:
+```bash
+webreel record                        # all videos in config
+webreel record hero login             # specific videos by name
+webreel record -c custom.config.json  # custom config path
+webreel record --watch                # re-record on config change
+webreel record --verbose              # log each step
+webreel record --dry-run              # print resolved config only
+webreel record --frames               # save raw JPEGs to .webreel/frames/
+```
 
-| Module        | Exports                                                                                                                                                                                                                                       |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `chrome.ts`   | `launchChrome(options?)`: spawns Chrome with remote debugging, auto-downloads Chrome for Testing if needed, returns `{ process, port, kill() }`                                                                                               |
-| `recorder.ts` | `Recorder` class: captures screenshots at ~60fps, encodes to MP4/GIF/WebM with ffmpeg, mixes in click/key sound effects                                                                                                                       |
-| `actions.ts`  | `navigate`, `waitForSelector`, `findElementByText`, `findElementBySelector`, `moveCursorTo`, `resetCursorPosition`, `clickAt`, `pressKey`, `typeText`, `dragFromTo`, `captureScreenshot`, `pause`, `modKey`, `markEvent`, `setActiveRecorder` |
-| `overlays.ts` | `injectOverlays(client, theme?)` (cursor + keystroke HUD), `showKeys`, `hideKeys`, `OverlayTheme`                                                                                                                                             |
-| `types.ts`    | `CDPClient`, `BoundingBox`                                                                                                                                                                                                                    |
-| `ffmpeg.ts`   | `ensureFfmpeg()`: resolves ffmpeg path, auto-downloads from ffbinaries.com if needed                                                                                                                                                          |
-| `download.ts` | `fetchJson`, `downloadAndExtract`, `makeExecutable`: shared download utilities                                                                                                                                                                |
+### preview
 
-### Key patterns
+Run steps in a visible browser without recording.
 
-- All actions take a `CDPClient` as the first argument. This is a typed subset of the CDP API covering `Runtime`, `Page`, `Input`, and `Emulation` domains.
-- DOM queries are executed via `Runtime.evaluate` with inline JS expressions that return serializable values.
-- `findElementByText` walks all visible text nodes via TreeWalker, returning the smallest element containing the text. Both `findElementByText` and `findElementBySelector` accept an optional `within` parameter for scoping.
-- The overlay cursor (`#__demo-cursor`) and keystroke container (`#__demo-keys`) are injected as fixed-position DOM elements. All overlay positioning accounts for CSS `zoom`. Overlay appearance is customizable via the `OverlayTheme` parameter.
-- `Recorder.start()` resolves ffmpeg via `ensureFfmpeg()` then calls `setActiveRecorder(this)` so `markEvent()` in actions can register click/key timestamps for sound mixing.
-- `Recorder.stop()` checks the output file extension: `.mp4` (H.264, default), `.webm` (VP9), or `.gif` (palette-based).
-- Sound assets (click.wav, key.wav) are auto-generated via ffmpeg on first use and cached in `~/.webreel/assets/`.
-- Frames are written to `~/.webreel/frames/` during recording and cleaned up after encoding.
-- Chrome and ffmpeg are auto-downloaded on first use if not found on the system. Binaries are cached in `~/.webreel/bin/`. Override with `CHROME_PATH` / `FFMPEG_PATH` env vars.
+```bash
+webreel preview
+webreel preview hero --verbose
+```
 
-### Adding a new action
+### composite
 
-1. Add the function to `src/actions.ts`, taking `CDPClient` as the first parameter.
-2. Export it from `src/index.ts`.
-3. If the action should produce a sound, call `markEvent("click" | "key")`.
-4. Add a corresponding step type to the CLI (see below).
+Re-apply overlays (cursor, HUD, sfx) to existing raw video without re-recording. Useful for tweaking theme settings.
 
-## webreel CLI
+```bash
+webreel composite
+webreel composite hero
+```
 
-Built with Commander. Entry point: `src/index.ts` (has shebang).
+### validate
 
-| Command     | Source                      | Description                                 |
-| ----------- | --------------------------- | ------------------------------------------- |
-| `init`      | `src/commands/init.ts`      | Scaffold a webreel.config.json              |
-| `record`    | `src/commands/record.ts`    | Record videos to MP4/GIF/WebM               |
-| `preview`   | `src/commands/preview.ts`   | Run in visible browser without recording    |
-| `composite` | `src/commands/composite.ts` | Re-composite from stored raw video/timeline |
-| `validate`  | `src/commands/validate.ts`  | Check config for errors                     |
+Check config for errors without running anything.
 
-### CLI flags
+```bash
+webreel validate
+webreel validate -c custom.config.json
+```
 
-- All commands: `-c, --config <path>` to specify a custom config file (default: `webreel.config.json`).
-- `record --verbose` / `preview --verbose`: Log each step before execution.
-- `record --watch`: Re-record when the config file changes (debounced 300ms).
-- `record [videos...]`: Filter to specific video names.
-- `preview [video]`: Preview a specific video (defaults to first).
+## Config structure
 
-### Runner (`src/lib/runner.ts`)
+Config files are auto-discovered as `webreel.config.json` (or `.ts`, `.mts`, `.js`, `.mjs`). Use `-c` to specify a custom path.
 
-`runVideo(config, options?)` orchestrates the full lifecycle: launch Chrome, set viewport, navigate, inject overlays (with optional theme), optionally start recording, execute steps, stop recording.
+### Top-level fields
 
-Options: `{ record?: boolean; verbose?: boolean }`.
+| Field          | Default     | Description                                      |
+| -------------- | ----------- | ------------------------------------------------ |
+| `$schema`      | -           | `"https://webreel.dev/schema/v1.json"`           |
+| `outDir`       | `"videos/"` | Output directory for rendered videos             |
+| `baseUrl`      | `""`        | Base URL prepended to relative video URLs        |
+| `viewport`     | `1080x1080` | Default viewport `{ width, height }`             |
+| `theme`        | -           | Cursor and HUD overlay theme                     |
+| `sfx`          | -           | Sound effect settings                            |
+| `include`      | -           | Array of step file paths prepended to all videos |
+| `defaultDelay` | -           | Default delay (ms) appended after each step      |
+| `clickDwell`   | -           | Cursor dwell time (ms) before a click            |
 
-The step execution loop is a `for` loop with `try/catch` that adds step index, action name, and URL context to any errors. When `verbose` is true, each step is logged before execution.
+### Per-video fields
 
-### Adding a new step type
+Each entry in the `videos` map supports:
 
-1. Add the interface to `src/lib/types.ts` and include it in the `Step` union.
-2. Add a `case` to the step loop in `src/lib/runner.ts`.
-3. Add validation logic for the new action in `src/lib/config.ts` `validateStep()`.
-4. Add the action to `VALID_ACTIONS` in `config.ts`.
-5. Add tests in `src/lib/__tests__/config.test.ts`.
+| Field          | Default        | Description                                        |
+| -------------- | -------------- | -------------------------------------------------- |
+| `url`          | required       | URL to open (absolute or relative to `baseUrl`)    |
+| `viewport`     | inherited      | Override viewport `{ width, height }`              |
+| `zoom`         | -              | CSS zoom factor                                    |
+| `waitFor`      | -              | Selector or text to wait for before starting steps |
+| `output`       | `"<name>.mp4"` | Output path (`.mp4`, `.gif`, `.webm`)              |
+| `thumbnail`    | `{ time: 0 }`  | Thumbnail config, or `{ enabled: false }`          |
+| `include`      | inherited      | Step files to prepend                              |
+| `theme`        | inherited      | Override theme                                     |
+| `sfx`          | inherited      | Override sound effects                             |
+| `defaultDelay` | inherited      | Override default delay                             |
+| `clickDwell`   | inherited      | Override click dwell                               |
+| `fps`          | `60`           | Frame rate                                         |
+| `quality`      | `80`           | Encoding quality (1-100)                           |
+| `steps`        | required       | Array of step objects                              |
 
-### Config validation (`src/lib/config.ts`)
+### Videos map
 
-`validateWebreelConfig()` validates the `WebreelConfig` format and returns `{ path, message }` errors.
-
-`loadWebreelConfig()` reads a config file and returns a `WebreelConfig`. The config must have a `videos` object mapping names to video configurations.
-
-`resolveConfigPath()` resolves the config file path: uses the provided `--config` path, or defaults to `webreel.config.json` in the current directory.
-
-Top-level `baseUrl`, `viewport`, `theme`, and `include` are inherited by videos that don't specify their own. `outDir` controls the output directory (defaults to `videos/`); video `output` paths are resolved relative to it. Timeline metadata is stored in `.webreel/timelines/` relative to the config file.
-
-## Config format
-
-### webreel.config.json
+Videos are keyed by name in the config:
 
 ```json
 {
-  "$schema": "https://webreel.dev/schema/v1.json",
-  "outDir": "./videos",
-  "baseUrl": "https://myapp.com",
-  "viewport": { "width": 1920, "height": 1080 },
   "videos": {
-    "hero": {
-      "url": "/",
-      "steps": [
-        { "action": "pause", "ms": 500 },
-        { "action": "click", "text": "Get Started" }
-      ]
+    "hero": { "url": "...", "steps": [...] },
+    "login": { "url": "...", "steps": [...] }
+  }
+}
+```
+
+Record specific videos by name: `webreel record hero login`.
+
+## Step types
+
+Each step has an `action` field. Most steps accept optional `label`, `delay` (ms after step), and `description` fields.
+
+| Action       | Key fields                                  | Purpose                            |
+| ------------ | ------------------------------------------- | ---------------------------------- |
+| `pause`      | `ms`                                        | Wait for a duration                |
+| `click`      | `text` or `selector`, `within`, `modifiers` | Click an element                   |
+| `type`       | `text`, `selector`, `within`, `charDelay`   | Type text into an input            |
+| `key`        | `key`, `target`                             | Press a key combo (e.g. `"cmd+s"`) |
+| `drag`       | `from`, `to` (element targets)              | Drag between two elements          |
+| `scroll`     | `x`, `y`, `selector`                        | Scroll the page or an element      |
+| `wait`       | `selector` or `text`, `timeout`             | Wait for an element to appear      |
+| `moveTo`     | `text` or `selector`, `within`              | Move cursor to an element          |
+| `navigate`   | `url`                                       | Navigate to a new URL              |
+| `hover`      | `text` or `selector`, `within`              | Hover over an element              |
+| `select`     | `selector`, `value`                         | Select a dropdown value            |
+| `screenshot` | `output`                                    | Capture a PNG screenshot           |
+
+For full field details on every step type, see [steps-reference.md](steps-reference.md).
+
+## Element targeting
+
+Many steps target elements using these fields:
+
+- `text` - match by visible text content
+- `selector` - match by CSS selector
+- `within` - narrow the search to a parent matching this CSS selector
+
+You can use `text` or `selector` (not both). `within` is optional and scopes the search.
+
+```json
+{ "action": "click", "text": "Submit" }
+{ "action": "click", "selector": "#submit-btn" }
+{ "action": "click", "text": "Submit", "within": ".modal" }
+```
+
+## Viewport presets
+
+Use preset names as string values for `viewport`, or specify `{ width, height }`:
+
+`desktop` (1920x1080), `desktop-hd` (2560x1440), `laptop` (1366x768), `macbook-air` (1440x900), `macbook-pro` (1512x982), `ipad` (1024x1366), `ipad-pro` (834x1194), `ipad-mini` (768x1024), `iphone-15` (393x852), `iphone-15-pro-max` (430x932), `iphone-se` (375x667), `pixel-8` (412x915), `galaxy-s24` (360x780).
+
+## Theme
+
+Customize cursor appearance and keystroke HUD:
+
+```json
+{
+  "theme": {
+    "cursor": {
+      "image": "./cursor.svg",
+      "size": 32,
+      "hotspot": "center"
     },
-    "login": {
-      "url": "/login",
-      "output": "login-flow.mp4",
-      "steps": [{ "action": "click", "text": "Sign In" }]
+    "hud": {
+      "background": "rgba(30, 41, 59, 0.85)",
+      "color": "#e2e8f0",
+      "fontSize": 48,
+      "fontFamily": "\"SF Mono\", monospace",
+      "borderRadius": 12,
+      "position": "top"
     }
   }
 }
 ```
 
-### Top-level fields
+- `cursor.image` - path to a custom cursor SVG or PNG
+- `cursor.size` - cursor size in pixels
+- `cursor.hotspot` - `"top-left"` (default) or `"center"`
+- `hud.position` - `"top"` or `"bottom"`
 
-| Field      | Type                          | Default    | Required |
-| ---------- | ----------------------------- | ---------- | -------- |
-| `$schema`  | string                        | -          | no       |
-| `outDir`   | string                        | `"videos"` | no       |
-| `baseUrl`  | string                        | `""`       | no       |
-| `viewport` | `{ width, height }`           | -          | no       |
-| `theme`    | ThemeConfig                   | -          | no       |
-| `include`  | string[]                      | -          | no       |
-| `videos`   | `Record<string, VideoConfig>` | -          | yes      |
+## Common patterns
 
-### Per-video fields
+### Shared steps via include
 
-Each key in the `videos` object is the video name (used as default output filename).
+Factor out reusable step sequences (e.g. dismissing a cookie banner) into JSON files:
 
-| Field       | Type                  | Default      | Required |
-| ----------- | --------------------- | ------------ | -------- |
-| `url`       | string                | -            | yes      |
-| `baseUrl`   | string                | inherited    | no       |
-| `viewport`  | `{ width, height }`   | inherited    | no       |
-| `zoom`      | number                | -            | no       |
-| `waitFor`   | string (CSS selector) | -            | no       |
-| `output`    | string                | `<name>.mp4` | no       |
-| `thumbnail` | number \| false       | `0`          | no       |
-| `include`   | string[]              | inherited    | no       |
-| `theme`     | ThemeConfig           | inherited    | no       |
-| `steps`     | Step[]                | -            | yes      |
+```json
+// steps/dismiss-banner.json
+{
+  "steps": [
+    { "action": "wait", "selector": ".cookie-banner", "timeout": 5000 },
+    { "action": "click", "selector": ".accept-btn", "delay": 300 }
+  ]
+}
+```
 
-### Step types
+Reference them in the config:
 
-| Action       | Required fields                               | Optional fields                                          |
-| ------------ | --------------------------------------------- | -------------------------------------------------------- |
-| `pause`      | `ms`                                          | -                                                        |
-| `click`      | `text` or `selector`                          | `within`, `modifiers`                                    |
-| `key`        | `key`                                         | `label`                                                  |
-| `drag`       | `from`, `to` (each with `text` or `selector`) | `within` on from/to                                      |
-| `moveTo`     | `text` or `selector`                          | `within`                                                 |
-| `type`       | `text`                                        | `target` (click target first), `delay` (ms between keys) |
-| `scroll`     | -                                             | `x`, `y`, `selector` (element to scroll), `within`       |
-| `wait`       | `selector` or `text`                          | `timeout` (default 30000)                                |
-| `screenshot` | `output`                                      | -                                                        |
+```json
+{
+  "include": ["./steps/dismiss-banner.json"],
+  "videos": { ... }
+}
+```
 
-### Theme config
+### Multiple videos in one config
 
-| Field                    | Type   | Default    | Description                          |
-| ------------------------ | ------ | ---------- | ------------------------------------ |
-| `theme.cursor`           | string | built-in   | Path to a custom cursor SVG file     |
-| `theme.cursorSize`       | number | 24         | Size of the cursor overlay in pixels |
-| `theme.hud.background`   | string | see code   | HUD background CSS value             |
-| `theme.hud.color`        | string | see code   | HUD text color                       |
-| `theme.hud.fontSize`     | number | 56         | HUD font size in pixels              |
-| `theme.hud.fontFamily`   | string | Geist, ... | HUD font family                      |
-| `theme.hud.borderRadius` | number | 18         | HUD border radius in pixels          |
-| `theme.hud.position`     | string | `"bottom"` | `"top"` or `"bottom"`                |
+Define several videos in the `videos` map. Shared settings (`viewport`, `theme`, `defaultDelay`) are inherited from the top level.
 
-### JSON Schema
+### Environment variables
 
-A JSON Schema is available at `https://webreel.dev/schema/v1.json` (served from `apps/docs/public/schema/v1.json`). Add `"$schema": "https://webreel.dev/schema/v1.json"` to `webreel.config.json` for IDE autocompletion.
+Config values support `$VAR` and `${VAR}` substitution from the environment.
 
-## Testing
+### Output formats
 
-Tests use Vitest. Test files live in `src/lib/__tests__/` within the webreel CLI package. Run with `pnpm test` from root or `npx vitest run` from the package.
+Set the `output` extension to control format: `.mp4` (default), `.gif`, `.webm`.
 
-## Publishing
+```json
+{ "output": "demo.gif" }
+```
 
-Uses `@changesets/cli` for versioning and publishing. Workflow:
+## Tips
 
-1. `pnpm changeset` to create a changeset describing the change.
-2. Merge to `main`. The release GitHub Action creates a "Version Packages" PR.
-3. Merging the version PR triggers `changeset publish` to npm.
+- Always set `waitFor` on a video to ensure the page is ready before steps run.
+- Use `delay` on individual steps to control pacing between actions.
+- Use `--watch` during development for automatic re-recording on config changes.
+- Use `composite` to iterate on theme/overlay settings without re-recording.
+- Use `--verbose` to debug step execution.
+- Use `--dry-run` to inspect the fully resolved config (includes, env vars, defaults).
+- Use `zoom` to scale up small UIs for readability in the recording.
+- Start with `preview` to verify steps work before committing to a full recording.
 
-## Conventions
+## Reference files
 
-- ESM-only with `.js` import extensions in source.
-- No emojis in code, comments, documentation, or commit messages.
-- Use latest npm package versions when adding dependencies.
-- Chrome, ffmpeg, sound assets, and temp frames are stored under `~/.webreel/` in the user's home directory. Override Chrome/ffmpeg with `CHROME_PATH` / `FFMPEG_PATH` env vars.
-- Lint with `pnpm lint`, format with `pnpm format`.
-- CI runs lint, format check, type check, build, and tests via GitHub Actions.
-- Use `<table>` HTML elements instead of markdown tables in `.mdx` files in the docs app.
+- [steps-reference.md](steps-reference.md) - detailed docs for all 12 step types
+- [examples.md](examples.md) - annotated config examples for common use cases
