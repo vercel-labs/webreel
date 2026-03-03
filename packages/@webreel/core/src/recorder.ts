@@ -187,8 +187,13 @@ export class Recorder {
         if (this.timeline) {
           this.timeline.tick();
           const pos = this.timeline.getCursorPosition();
+          const scale = this.timeline.getCursorScale();
           const mx = Math.round(pos.x);
           const my = Math.round(pos.y);
+
+          await client.Runtime.evaluate({
+            expression: `(()=>{const el=document.getElementById("__demo-cursor");if(el){el.getAnimations().forEach(a=>a.cancel());el.style.transition="";el.style.transform="translate(${mx}px,${my}px) scale(${scale})";el.dataset.cx="${mx}";el.dataset.cy="${my}";}})()`,
+          });
 
           const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
           this.mouseThrottle++;
@@ -265,8 +270,14 @@ export class Recorder {
         if (this.timeline) {
           this.timeline.tick();
           const pos = this.timeline.getCursorPosition();
+          const scale = this.timeline.getCursorScale();
           const mx = Math.round(pos.x);
           const my = Math.round(pos.y);
+
+          await client.Runtime.evaluate({
+            expression: `(()=>{const el=document.getElementById("__demo-cursor");if(el){el.getAnimations().forEach(a=>a.cancel());el.style.transition="";el.style.transform="translate(${mx}px,${my}px) scale(${scale})";el.dataset.cx="${mx}";el.dataset.cy="${my}";}})()`,
+          });
+
           await client.Input.dispatchMouseEvent({
             type: "mouseMoved",
             x: mx,
@@ -370,12 +381,6 @@ export class Recorder {
 
     if (this.frameCount === 0) {
       rmSync(this.tempVideo, { force: true });
-      return;
-    }
-
-    // When a timeline is set, the caller is responsible for the temp video
-    // (e.g. renaming it for later compositing). Don't delete or finalize it.
-    if (this.timeline) {
       return;
     }
 

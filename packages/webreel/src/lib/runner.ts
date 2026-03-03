@@ -1,12 +1,5 @@
-import { resolve, dirname } from "node:path";
-import {
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  renameSync,
-  copyFileSync,
-  unlinkSync,
-} from "node:fs";
+import { resolve } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -31,7 +24,6 @@ import {
   captureScreenshot,
   Recorder,
   InteractionTimeline,
-  compose,
   ensureFfmpeg,
   extractThumbnail,
   DEFAULT_VIEWPORT_SIZE,
@@ -223,6 +215,8 @@ export async function runVideo(
     const outputPath =
       config.output ?? resolve(configDir, "videos", `${config.name}.mp4`);
 
+    await injectOverlays(client, overlayTheme, initialCursor);
+
     if (shouldRecord) {
       ctx.setMode("record");
       timeline = new InteractionTimeline(width, height, {
@@ -255,7 +249,6 @@ export async function runVideo(
     } else {
       ctx.setMode("preview");
       ctx.setTimeline(null);
-      await injectOverlays(client, overlayTheme, initialCursor);
     }
 
     await pause(500);
@@ -431,7 +424,6 @@ export async function runVideo(
     }
 
     if (recorder) {
-      const cleanVideoPath = recorder.getTempVideoPath();
       await recorder.stop();
       recorder = null;
 
@@ -443,25 +435,9 @@ export async function runVideo(
           resolve(metadataDir, `${config.name}.timeline.json`),
           JSON.stringify(timelineData),
         );
-
-        const rawDir = resolve(configDir, ".webreel", "raw");
-        mkdirSync(rawDir, { recursive: true });
-        const rawVideoPath = resolve(rawDir, `${config.name}.mp4`);
-        try {
-          renameSync(cleanVideoPath, rawVideoPath);
-        } catch {
-          copyFileSync(cleanVideoPath, rawVideoPath);
-          unlinkSync(cleanVideoPath);
-        }
-
-        ctx.setMode("preview");
-        ctx.setTimeline(null);
-        mkdirSync(dirname(outputPath), { recursive: true });
-        console.log(`Compositing overlays...`);
-        await compose(rawVideoPath, timelineData, outputPath, { sfx: config.sfx });
       }
-      await extractThumbnailIfConfigured(config, outputPath);
 
+      await extractThumbnailIfConfigured(config, outputPath);
       console.log(`Done: ${outputPath}`);
     } else {
       console.log(`Preview complete: ${config.name}`);

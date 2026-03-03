@@ -198,6 +198,10 @@ export class InteractionTimeline {
     return { x: this.currentCursor.x, y: this.currentCursor.y };
   }
 
+  getCursorScale(): number {
+    return this.currentCursor.scale;
+  }
+
   isMoving(): boolean {
     return this.cursorPath !== null && this.pathIndex < this.cursorPath.length;
   }

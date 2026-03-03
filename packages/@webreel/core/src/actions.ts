@@ -330,9 +330,8 @@ export async function clickAt(
     for (const m of modifiers) labels.push(modLabel(m));
     if (ctx.isRecording) {
       getTimeline(ctx).showHud(labels);
-    } else {
-      await showKeys(client, labels);
     }
+    await showKeys(client, labels);
   }
 
   await moveCursorTo(ctx, client, x, y);
@@ -466,9 +465,8 @@ export async function clickAt(
     await pause(400);
     if (ctx.isRecording) {
       getTimeline(ctx).hideHud();
-    } else {
-      await hideKeys(client);
     }
+    await hideKeys(client);
   }
 }
 
@@ -568,9 +566,8 @@ export async function pressKey(
 
   if (ctx.isRecording) {
     getTimeline(ctx).showHud(displayParts);
-  } else {
-    await showKeys(client, displayParts);
   }
+  await showKeys(client, displayParts);
   ctx.markEvent("key");
 
   const flag = modifiersToFlag(modifiers);
@@ -598,9 +595,8 @@ export async function pressKey(
   await pause(800);
   if (ctx.isRecording) {
     getTimeline(ctx).hideHud();
-  } else {
-    await hideKeys(client);
   }
+  await hideKeys(client);
 }
 
 export const CHAR_CODES: Record<string, { code: string; keyCode: number }> = {
@@ -782,17 +778,12 @@ export async function dragFromTo(
           ghost.style.left = "${wp.x - fromBox.width / 2}px";
           ghost.style.top = "${wp.y - fromBox.height / 2}px";
         }
-        ${
-          isRecording
-            ? ""
-            : `
         const cursor = document.getElementById("__demo-cursor");
         if (cursor) {
           cursor.getAnimations().forEach(a => a.cancel());
           cursor.style.transform = "translate(${wp.x}px,${wp.y}px)";
           cursor.dataset.cx = "${wp.x}";
           cursor.dataset.cy = "${wp.y}";
-        }`
         }
       })()`,
     });
