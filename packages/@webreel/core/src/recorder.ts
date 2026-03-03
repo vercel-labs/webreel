@@ -193,23 +193,6 @@ export class Recorder {
               x: mx,
               y: my,
             });
-            if (loopCount <= 3)
-              console.log(`[recorder] loop ${loopCount}: beginFrame start`);
-            const bfResult = await this.raceStop(
-              client.send("HeadlessExperimental.beginFrame", {
-                interval: this.frameMs,
-              }) as Promise<unknown>,
-            );
-            if (loopCount <= 3)
-              console.log(
-                `[recorder] loop ${loopCount}: beginFrame done, result=${JSON.stringify(bfResult)}`,
-              );
-            if (bfResult === null) {
-              console.log(
-                `[recorder] beginFrame raceStop returned null (stopped), breaking`,
-              );
-              break;
-            }
           } else {
             const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
             this.mouseThrottle++;
@@ -233,26 +216,29 @@ export class Recorder {
           if (!evalResult) break;
         }
 
-        if (loopCount <= 3) console.log(`[recorder] loop ${loopCount}: screenshot start`);
-        const screenshotResult = await this.raceStop(
-          client.Page.captureScreenshot({
-            format: "jpeg",
-            quality: 60,
-            optimizeForSpeed: true,
-          }),
-        );
-        if (!screenshotResult) {
-          console.log(
-            `[recorder] screenshot raceStop returned null (stopped) at loop ${loopCount}, breaking`,
-          );
-          break;
-        }
-        if (loopCount <= 3)
-          console.log(
-            `[recorder] loop ${loopCount}: screenshot done, size=${screenshotResult.data.length}`,
-          );
+        let buffer: Buffer;
 
-        const buffer = Buffer.from(screenshotResult.data, "base64");
+        if (this.hasBeginFrameControl) {
+          const bfResult = await this.raceStop(
+            client.send("HeadlessExperimental.beginFrame", {
+              interval: this.frameMs,
+              screenshot: { format: "jpeg", quality: 60 },
+            }) as Promise<{ hasDamage: boolean; screenshotData?: string }>,
+          );
+          if (!bfResult) break;
+          if (!bfResult.screenshotData) continue;
+          buffer = Buffer.from(bfResult.screenshotData, "base64");
+        } else {
+          const screenshotResult = await this.raceStop(
+            client.Page.captureScreenshot({
+              format: "jpeg",
+              quality: 60,
+              optimizeForSpeed: true,
+            }),
+          );
+          if (!screenshotResult) break;
+          buffer = Buffer.from(screenshotResult.data, "base64");
+        }
 
         if (this.hasBeginFrameControl) {
           await this.writeFrame(buffer);
