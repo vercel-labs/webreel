@@ -480,12 +480,15 @@ Customize the cursor and keystroke overlay appearance. Can be set at the top lev
       "hotspot": "top-left"
     },
     "hud": {
-      "background": "rgba(0,0,0,0.7)",
       "color": "white",
       "fontSize": 48,
       "fontFamily": "monospace",
-      "borderRadius": 12,
-      "position": "bottom"
+      "position": "bottom",
+      "blur": 20,
+      "keyBackground": "rgba(22, 22, 22, 0.65)",
+      "keyBorder": "rgba(255, 255, 255, 0.12)",
+      "keyBorderRadius": 12,
+      "keyPadding": "10px 20px"
     }
   }
 }
@@ -589,6 +592,61 @@ Customize the cursor and keystroke overlay appearance. Can be set at the top lev
       <td>
         Where the HUD appears: <code>"top"</code> or <code>"bottom"</code>
       </td>
+    </tr>
+    <tr>
+      <td>
+        <code>blur</code>
+      </td>
+      <td>
+        <code>20</code>
+      </td>
+      <td>Backdrop blur radius in pixels for the HUD container (live preview only)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>border</code>
+      </td>
+      <td>-</td>
+      <td>CSS border color for the HUD container</td>
+    </tr>
+    <tr>
+      <td>
+        <code>shadow</code>
+      </td>
+      <td>-</td>
+      <td>CSS box-shadow for the HUD container</td>
+    </tr>
+    <tr>
+      <td>
+        <code>keyBackground</code>
+      </td>
+      <td>-</td>
+      <td>CSS background for individual key caps inside the HUD</td>
+    </tr>
+    <tr>
+      <td>
+        <code>keyBorder</code>
+      </td>
+      <td>-</td>
+      <td>CSS border color for individual key caps</td>
+    </tr>
+    <tr>
+      <td>
+        <code>keyBorderRadius</code>
+      </td>
+      <td>
+        <code>10</code>
+      </td>
+      <td>Border radius in pixels for individual key caps</td>
+    </tr>
+    <tr>
+      <td>
+        <code>keyPadding</code>
+      </td>
+      <td>
+        <code>"8px 16px"</code>
+      </td>
+      <td>CSS padding for individual key caps</td>
     </tr>
   </tbody>
 </table>

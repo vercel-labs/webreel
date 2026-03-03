@@ -1,5 +1,12 @@
 import { resolve, dirname } from "node:path";
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  renameSync,
+  copyFileSync,
+  unlinkSync,
+} from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -7,6 +14,7 @@ import {
   type OverlayTheme,
   RecordingContext,
   connectCDP,
+  connectCDPForRecording,
   launchChrome,
   navigate,
   waitForSelector,
@@ -154,7 +162,15 @@ export async function runVideo(
   let recorder: Recorder | null = null;
 
   try {
-    const client = await connectCDP(chrome.port);
+    let hasBeginFrameControl = false;
+    let client: CDPClient;
+    if (shouldRecord) {
+      const conn = await connectCDPForRecording(chrome.port);
+      client = conn.client;
+      hasBeginFrameControl = conn.hasBeginFrameControl;
+    } else {
+      client = await connectCDP(chrome.port);
+    }
     clientRef = client;
     await client.Page.enable();
     await client.Runtime.enable();
@@ -232,6 +248,7 @@ export async function runVideo(
         crf,
         framesDir,
         sfx: config.sfx,
+        hasBeginFrameControl,
       });
       recorder.setTimeline(timeline);
       await recorder.start(client, outputPath, ctx);
@@ -430,7 +447,12 @@ export async function runVideo(
         const rawDir = resolve(configDir, ".webreel", "raw");
         mkdirSync(rawDir, { recursive: true });
         const rawVideoPath = resolve(rawDir, `${config.name}.mp4`);
-        renameSync(cleanVideoPath, rawVideoPath);
+        try {
+          renameSync(cleanVideoPath, rawVideoPath);
+        } catch {
+          copyFileSync(cleanVideoPath, rawVideoPath);
+          unlinkSync(cleanVideoPath);
+        }
 
         ctx.setMode("preview");
         ctx.setTimeline(null);

@@ -521,6 +521,22 @@ export function resolveCommands(
   return SHORTCUT_COMMANDS[parts.join("+")];
 }
 
+const KEY_DISPLAY_NAMES: Record<string, string> = {
+  Escape: "Esc",
+  Delete: "Del",
+  Backspace: "Bksp",
+  Enter: "Enter",
+  Tab: "Tab",
+  ArrowUp: "\u2191",
+  ArrowDown: "\u2193",
+  ArrowLeft: "\u2190",
+  ArrowRight: "\u2192",
+};
+
+function keyDisplayName(key: string): string {
+  return KEY_DISPLAY_NAMES[key] ?? key;
+}
+
 export async function pressKey(
   ctx: RecordingContext,
   client: CDPClient,
@@ -548,7 +564,7 @@ export async function pressKey(
 
   const displayParts: string[] = [];
   for (const m of modifiers) displayParts.push(modLabel(m));
-  displayParts.push(label ?? mainKey);
+  displayParts.push(label ?? keyDisplayName(mainKey));
 
   if (ctx.isRecording) {
     getTimeline(ctx).showHud(displayParts);

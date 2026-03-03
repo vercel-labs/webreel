@@ -10,7 +10,7 @@
       "steps": [
         { "action": "pause", "ms": 500 },
         { "action": "click", "selector": ".editor" },
-        { "action": "key", "key": "cmd+a" },
+        { "action": "key", "key": "shift+a" },
         { "action": "key", "key": "cmd+b", "delay": 800 },
         { "action": "click", "selector": ".editor p:first-of-type" },
         { "action": "key", "key": "cmd+s", "delay": 1200 },

@@ -40,6 +40,13 @@ export interface TimelineData {
       fontFamily: string;
       borderRadius: number;
       position: "top" | "bottom";
+      blur: number;
+      border: string;
+      shadow: string;
+      keyBackground: string;
+      keyBorder: string;
+      keyBorderRadius: number;
+      keyPadding: string;
     };
   };
   frames: FrameData[];
@@ -105,6 +112,13 @@ export class InteractionTimeline {
       fontFamily: options?.hud?.fontFamily ?? DEFAULT_HUD_THEME.fontFamily,
       borderRadius: options?.hud?.borderRadius ?? DEFAULT_HUD_THEME.borderRadius,
       position: options?.hud?.position ?? DEFAULT_HUD_THEME.position,
+      blur: options?.hud?.blur ?? DEFAULT_HUD_THEME.blur,
+      border: options?.hud?.border ?? DEFAULT_HUD_THEME.border,
+      shadow: options?.hud?.shadow ?? DEFAULT_HUD_THEME.shadow,
+      keyBackground: options?.hud?.keyBackground ?? DEFAULT_HUD_THEME.keyBackground,
+      keyBorder: options?.hud?.keyBorder ?? DEFAULT_HUD_THEME.keyBorder,
+      keyBorderRadius: options?.hud?.keyBorderRadius ?? DEFAULT_HUD_THEME.keyBorderRadius,
+      keyPadding: options?.hud?.keyPadding ?? DEFAULT_HUD_THEME.keyPadding,
     };
     if (options?.loadedFrames) {
       this.frames = options.loadedFrames;
@@ -178,6 +192,14 @@ export class InteractionTimeline {
 
   getFrameCount(): number {
     return this.frameCount;
+  }
+
+  getCursorPosition(): Point {
+    return { x: this.currentCursor.x, y: this.currentCursor.y };
+  }
+
+  isMoving(): boolean {
+    return this.cursorPath !== null && this.pathIndex < this.cursorPath.length;
   }
 
   toJSON(): TimelineData {

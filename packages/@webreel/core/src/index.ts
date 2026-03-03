@@ -9,7 +9,7 @@ export {
   DEFAULT_CURSOR_SIZE,
   DEFAULT_HUD_THEME,
 } from "./types.js";
-export { connectCDP } from "./cdp.js";
+export { connectCDP, connectCDPForRecording, type CDPConnectionResult } from "./cdp.js";
 export {
   launchChrome,
   ensureChrome,

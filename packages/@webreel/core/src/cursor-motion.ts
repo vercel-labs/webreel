@@ -98,14 +98,7 @@ export async function animateMoveTo(
 
   if (ctx.isRecording && ctx.timeline) {
     ctx.timeline.setCursorPath(positions);
-
     await new Promise((r) => setTimeout(r, NUM_STEPS * CAPTURE_CYCLE_MS));
-
-    await client.Input.dispatchMouseEvent({
-      type: "mouseMoved",
-      x: toX,
-      y: toY,
-    });
     return;
   }
 

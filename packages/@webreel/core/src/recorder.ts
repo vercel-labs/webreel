@@ -31,11 +31,18 @@ export class Recorder {
   private framesDir: string | null = null;
   private stopResolve: (() => void) | null = null;
   private stoppedPromise: Promise<void> | null = null;
+  private hasBeginFrameControl: boolean;
 
   constructor(
     outputWidth = DEFAULT_VIEWPORT_SIZE,
     outputHeight = DEFAULT_VIEWPORT_SIZE,
-    options?: { sfx?: SfxConfig; fps?: number; crf?: number; framesDir?: string },
+    options?: {
+      sfx?: SfxConfig;
+      fps?: number;
+      crf?: number;
+      framesDir?: string;
+      hasBeginFrameControl?: boolean;
+    },
   ) {
     this.outputWidth = outputWidth;
     this.outputHeight = outputHeight;
@@ -43,6 +50,7 @@ export class Recorder {
     this.fps = options?.fps ?? TARGET_FPS;
     this.frameMs = 1000 / this.fps;
     this.crf = options?.crf ?? 18;
+    this.hasBeginFrameControl = options?.hasBeginFrameControl ?? false;
     if (options?.framesDir) {
       this.framesDir = options.framesDir;
       mkdirSync(this.framesDir, { recursive: true });
@@ -134,6 +142,9 @@ export class Recorder {
       this.stopResolve = resolve;
     });
 
+    console.log(
+      `[recorder] beginFrameControl=${this.hasBeginFrameControl} fps=${this.fps}`,
+    );
     this.capturePromise = this.captureLoop(client);
   }
 
@@ -158,6 +169,10 @@ export class Recorder {
     return result;
   }
 
+  private lastMouseX = -1;
+  private lastMouseY = -1;
+  private mouseThrottle = 0;
+
   private async captureLoop(client: CDPClient) {
     let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
@@ -166,6 +181,35 @@ export class Recorder {
       try {
         if (this.timeline) {
           this.timeline.tick();
+          const pos = this.timeline.getCursorPosition();
+          const mx = Math.round(pos.x);
+          const my = Math.round(pos.y);
+
+          if (this.hasBeginFrameControl) {
+            await client.Input.dispatchMouseEvent({
+              type: "mouseMoved",
+              x: mx,
+              y: my,
+            });
+            await this.raceStop(
+              client.send("HeadlessExperimental.beginFrame", {
+                interval: this.frameMs,
+              }) as Promise<unknown>,
+            );
+          } else {
+            const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
+            this.mouseThrottle++;
+            if (moved && this.mouseThrottle >= 3) {
+              this.mouseThrottle = 0;
+              this.lastMouseX = mx;
+              this.lastMouseY = my;
+              await client.Input.dispatchMouseEvent({
+                type: "mouseMoved",
+                x: mx,
+                y: my,
+              });
+            }
+          }
         } else {
           const evalResult = await this.raceStop(
             client.Runtime.evaluate({
@@ -174,6 +218,7 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
+
         const screenshotResult = await this.raceStop(
           client.Page.captureScreenshot({
             format: "jpeg",
@@ -184,27 +229,31 @@ export class Recorder {
         if (!screenshotResult) break;
 
         const buffer = Buffer.from(screenshotResult.data, "base64");
-        const now = Date.now();
-        const elapsed = now - lastFrameTime;
-        const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
 
-        if (frameSlots > 1) {
-          for (let i = 0; i < frameSlots - 1; i++) {
-            if (this.timeline) this.timeline.tickDuplicate();
-            await this.writeFrame(buffer);
-            this.frameCount++;
+        if (this.hasBeginFrameControl) {
+          await this.writeFrame(buffer);
+          this.frameCount++;
+        } else {
+          const now = Date.now();
+          const elapsed = now - lastFrameTime;
+          const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
+          if (frameSlots > 1) {
+            for (let i = 0; i < frameSlots - 1; i++) {
+              if (this.timeline) this.timeline.tickDuplicate();
+              await this.writeFrame(buffer);
+              this.frameCount++;
+            }
           }
+          await this.writeFrame(buffer);
+          this.frameCount++;
+          lastFrameTime = now;
         }
-
-        await this.writeFrame(buffer);
-        this.frameCount++;
 
         if (this.framesDir) {
           const padded = String(this.frameCount).padStart(5, "0");
           writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), buffer);
         }
 
-        lastFrameTime = now;
         consecutiveErrors = 0;
       } catch (err) {
         if (!this.running) break;
@@ -269,6 +318,10 @@ export class Recorder {
       clearTimeout(killTimer);
       this.ffmpegProcess = null;
     }
+
+    console.log(
+      `[recorder] stopped: ${this.frameCount} frames, ${this.droppedFrames} dropped`,
+    );
 
     if (this.frameCount === 0) {
       rmSync(this.tempVideo, { force: true });
