@@ -30,7 +30,8 @@ npx webreel install --force   # delete cached binaries and re-download
 
 To override the auto-downloaded binaries, set these environment variables:
 
-- `CHROME_PATH` - path to a Chrome or Chromium binary
+- `CHROME_PATH` - path to a Chrome or Chromium binary (used for preview)
+- `CHROME_HEADLESS_PATH` - path to a chrome-headless-shell binary (used for recording)
 - `FFMPEG_PATH` - path to an ffmpeg binary
 
 If a recording fails with "No inspectable targets" or similar browser errors, the issue is almost certainly in the webreel config (wrong `waitFor`, missing element, timing), not a missing browser. Check the config and use `--verbose` to debug.

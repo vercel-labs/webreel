@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { existsSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import {
   ensureChrome,
   ensureHeadlessShell,
@@ -20,6 +20,7 @@ const STEPS: InstallStep[] = [
   {
     label: "Chrome (headless shell)",
     cacheDir: HEADLESS_SHELL_CACHE_DIR,
+    envVar: "CHROME_HEADLESS_PATH",
     run: ensureHeadlessShell,
   },
   {
@@ -40,7 +41,7 @@ export const installCommand = new Command("install")
   .description("Download Chrome and ffmpeg to ~/.webreel")
   .option("--force", "delete cached binaries and re-download")
   .action(async (opts: { force?: boolean }) => {
-    const failed: string[] = [];
+    const pending: InstallStep[] = [];
 
     for (const step of STEPS) {
       const override = step.envVar ? process.env[step.envVar] : undefined;
@@ -53,20 +54,39 @@ export const installCommand = new Command("install")
         rmSync(step.cacheDir, { recursive: true, force: true });
       }
 
-      const cached = existsSync(step.cacheDir);
-      console.log(
-        cached
-          ? `${step.label}: found in cache, verifying...`
-          : `${step.label}: downloading...`,
-      );
+      pending.push(step);
+    }
 
-      try {
-        const binPath = await step.run();
-        console.log(`  ${step.label} ready: ${binPath}`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`  ${step.label} failed: ${msg}`);
-        failed.push(step.label);
+    if (pending.length === 0) {
+      console.log("Nothing to install.");
+      return;
+    }
+
+    console.log(`Installing ${pending.map((s) => s.label).join(", ")}...\n`);
+
+    type StepResult =
+      | { ok: true; step: InstallStep; binPath: string }
+      | { ok: false; step: InstallStep; error: string };
+
+    const results = await Promise.all(
+      pending.map(async (step): Promise<StepResult> => {
+        try {
+          const binPath = await step.run();
+          return { ok: true, step, binPath };
+        } catch (err) {
+          const error = err instanceof Error ? err.message : String(err);
+          return { ok: false, step, error };
+        }
+      }),
+    );
+
+    const failed: string[] = [];
+    for (const result of results) {
+      if (result.ok) {
+        console.log(`${result.step.label} ready: ${result.binPath}`);
+      } else {
+        console.error(`${result.step.label} failed: ${result.error}`);
+        failed.push(result.step.label);
       }
     }
 
