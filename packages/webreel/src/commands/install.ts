@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { ensureChrome, ensureHeadlessShell, ensureFfmpeg } from "@webreel/core";
@@ -9,6 +9,7 @@ const BIN_DIR = resolve(homedir(), ".webreel", "bin");
 interface InstallStep {
   label: string;
   subdir: string;
+  envVar?: string;
   run: () => Promise<string>;
 }
 
@@ -18,8 +19,13 @@ const STEPS: InstallStep[] = [
     subdir: "chrome-headless-shell",
     run: ensureHeadlessShell,
   },
-  { label: "Chrome (full, for preview)", subdir: "chrome", run: ensureChrome },
-  { label: "ffmpeg", subdir: "ffmpeg", run: ensureFfmpeg },
+  {
+    label: "Chrome (full, for preview)",
+    subdir: "chrome",
+    envVar: "CHROME_PATH",
+    run: ensureChrome,
+  },
+  { label: "ffmpeg", subdir: "ffmpeg", envVar: "FFMPEG_PATH", run: ensureFfmpeg },
 ];
 
 export const installCommand = new Command("install")
@@ -29,11 +35,25 @@ export const installCommand = new Command("install")
     const failed: string[] = [];
 
     for (const step of STEPS) {
-      if (opts.force) {
-        rmSync(resolve(BIN_DIR, step.subdir), { recursive: true, force: true });
+      const override = step.envVar ? process.env[step.envVar] : undefined;
+      if (override) {
+        console.log(`Skipping ${step.label}, using ${step.envVar}=${override}`);
+        continue;
       }
 
-      console.log(`Installing ${step.label}...`);
+      const cacheDir = resolve(BIN_DIR, step.subdir);
+
+      if (opts.force) {
+        rmSync(cacheDir, { recursive: true, force: true });
+      }
+
+      const cached = existsSync(cacheDir);
+      console.log(
+        cached
+          ? `${step.label}: found in cache, verifying...`
+          : `${step.label}: downloading...`,
+      );
+
       try {
         const binPath = await step.run();
         console.log(`  ${step.label} ready: ${binPath}`);
