@@ -176,36 +176,31 @@ export class Recorder {
   private async captureLoop(client: CDPClient) {
     let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
-    let loopCount = 0;
+
+    if (this.hasBeginFrameControl) {
+      await this.captureLoopDeterministic(client);
+      return;
+    }
 
     while (this.running) {
       try {
-        loopCount++;
         if (this.timeline) {
           this.timeline.tick();
           const pos = this.timeline.getCursorPosition();
           const mx = Math.round(pos.x);
           const my = Math.round(pos.y);
 
-          if (this.hasBeginFrameControl) {
+          const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
+          this.mouseThrottle++;
+          if (moved && this.mouseThrottle >= 3) {
+            this.mouseThrottle = 0;
+            this.lastMouseX = mx;
+            this.lastMouseY = my;
             await client.Input.dispatchMouseEvent({
               type: "mouseMoved",
               x: mx,
               y: my,
             });
-          } else {
-            const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
-            this.mouseThrottle++;
-            if (moved && this.mouseThrottle >= 3) {
-              this.mouseThrottle = 0;
-              this.lastMouseX = mx;
-              this.lastMouseY = my;
-              await client.Input.dispatchMouseEvent({
-                type: "mouseMoved",
-                x: mx,
-                y: my,
-              });
-            }
           }
         } else {
           const evalResult = await this.raceStop(
@@ -216,48 +211,29 @@ export class Recorder {
           if (!evalResult) break;
         }
 
-        let buffer: Buffer;
+        const screenshotResult = await this.raceStop(
+          client.Page.captureScreenshot({
+            format: "jpeg",
+            quality: 60,
+            optimizeForSpeed: true,
+          }),
+        );
+        if (!screenshotResult) break;
 
-        if (this.hasBeginFrameControl) {
-          const bfResult = await this.raceStop(
-            client.send("HeadlessExperimental.beginFrame", {
-              interval: this.frameMs,
-              screenshot: { format: "jpeg", quality: 60 },
-            }) as Promise<{ hasDamage: boolean; screenshotData?: string }>,
-          );
-          if (!bfResult) break;
-          if (!bfResult.screenshotData) continue;
-          buffer = Buffer.from(bfResult.screenshotData, "base64");
-        } else {
-          const screenshotResult = await this.raceStop(
-            client.Page.captureScreenshot({
-              format: "jpeg",
-              quality: 60,
-              optimizeForSpeed: true,
-            }),
-          );
-          if (!screenshotResult) break;
-          buffer = Buffer.from(screenshotResult.data, "base64");
-        }
-
-        if (this.hasBeginFrameControl) {
-          await this.writeFrame(buffer);
-          this.frameCount++;
-        } else {
-          const now = Date.now();
-          const elapsed = now - lastFrameTime;
-          const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
-          if (frameSlots > 1) {
-            for (let i = 0; i < frameSlots - 1; i++) {
-              if (this.timeline) this.timeline.tickDuplicate();
-              await this.writeFrame(buffer);
-              this.frameCount++;
-            }
+        const buffer = Buffer.from(screenshotResult.data, "base64");
+        const now = Date.now();
+        const elapsed = now - lastFrameTime;
+        const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
+        if (frameSlots > 1) {
+          for (let i = 0; i < frameSlots - 1; i++) {
+            if (this.timeline) this.timeline.tickDuplicate();
+            await this.writeFrame(buffer);
+            this.frameCount++;
           }
-          await this.writeFrame(buffer);
-          this.frameCount++;
-          lastFrameTime = now;
         }
+        await this.writeFrame(buffer);
+        this.frameCount++;
+        lastFrameTime = now;
 
         if (this.framesDir) {
           const padded = String(this.frameCount).padStart(5, "0");
@@ -268,11 +244,6 @@ export class Recorder {
       } catch (err) {
         if (!this.running) break;
         consecutiveErrors++;
-        if (loopCount <= 15)
-          console.error(
-            `[recorder] loop ${loopCount}: error #${consecutiveErrors}:`,
-            err,
-          );
         if (consecutiveErrors >= 10) {
           console.error(
             `Recording aborted after ${consecutiveErrors} consecutive capture failures:`,
@@ -282,9 +253,65 @@ export class Recorder {
         }
       }
     }
-    console.log(
-      `[recorder] captureLoop exited after ${loopCount} iterations, ${this.frameCount} frames`,
-    );
+  }
+
+  private async captureLoopDeterministic(client: CDPClient) {
+    const SCREENSHOT_INTERVAL = 3;
+    let lastBuffer: Buffer | null = null;
+    let ticksSinceScreenshot = SCREENSHOT_INTERVAL;
+
+    while (this.running) {
+      try {
+        if (this.timeline) {
+          this.timeline.tick();
+          const pos = this.timeline.getCursorPosition();
+          const mx = Math.round(pos.x);
+          const my = Math.round(pos.y);
+          await client.Input.dispatchMouseEvent({
+            type: "mouseMoved",
+            x: mx,
+            y: my,
+          });
+        }
+
+        ticksSinceScreenshot++;
+        const needsScreenshot = ticksSinceScreenshot >= SCREENSHOT_INTERVAL;
+
+        if (needsScreenshot) {
+          const bfResult = await this.raceStop(
+            client.send("HeadlessExperimental.beginFrame", {
+              interval: this.frameMs,
+              screenshot: { format: "jpeg", quality: 60 },
+            }) as Promise<{ hasDamage: boolean; screenshotData?: string }>,
+          );
+          if (!bfResult) break;
+          if (bfResult.screenshotData) {
+            lastBuffer = Buffer.from(bfResult.screenshotData, "base64");
+            ticksSinceScreenshot = 0;
+          }
+        } else {
+          const bfResult = await this.raceStop(
+            client.send("HeadlessExperimental.beginFrame", {
+              interval: this.frameMs,
+            }) as Promise<unknown>,
+          );
+          if (bfResult === null) break;
+        }
+
+        if (lastBuffer) {
+          await this.writeFrame(lastBuffer);
+          this.frameCount++;
+
+          if (this.framesDir) {
+            const padded = String(this.frameCount).padStart(5, "0");
+            writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), lastBuffer);
+          }
+        }
+      } catch (err) {
+        if (!this.running) break;
+      }
+    }
+    console.log(`[recorder] deterministic loop: ${this.frameCount} frames captured`);
   }
 
   getTempVideoPath(): string {
