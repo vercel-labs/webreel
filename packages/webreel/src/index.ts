@@ -9,6 +9,7 @@ import { initCommand } from "./commands/init.js";
 import { validateCommand } from "./commands/validate.js";
 import { previewCommand } from "./commands/preview.js";
 import { compositeCommand } from "./commands/composite.js";
+import { installCommand } from "./commands/install.js";
 
 let version = "0.0.0";
 try {
@@ -34,6 +35,7 @@ program.addCommand(initCommand);
 program.addCommand(validateCommand);
 program.addCommand(previewCommand);
 program.addCommand(compositeCommand);
+program.addCommand(installCommand);
 
 program.parseAsync().catch((err: Error) => {
   console.error(err.message);

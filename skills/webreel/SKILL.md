@@ -17,6 +17,33 @@ npm install webreel
 
 If the project already has webreel in its dependencies, skip this step.
 
+## Prerequisites
+
+webreel requires Chrome and ffmpeg, but you do NOT need to install them manually. Both are automatically downloaded to `~/.webreel` on first run if not already present. Do not install Chrome or Chromium via puppeteer, playwright, or any other tool. webreel manages its own browser.
+
+To download dependencies explicitly, or to fix corrupted/broken binaries:
+
+```bash
+npx webreel install
+npx webreel install --force   # delete cached binaries and re-download
+```
+
+To override the auto-downloaded binaries, set these environment variables:
+
+- `CHROME_PATH` - path to a Chrome or Chromium binary (used for preview)
+- `CHROME_HEADLESS_PATH` - path to a chrome-headless-shell binary (used for recording)
+- `FFMPEG_PATH` - path to an ffmpeg binary
+
+If a recording fails with "No inspectable targets" or similar browser errors, the issue is almost certainly in the webreel config (wrong `waitFor`, missing element, timing), not a missing browser. Check the config and use `--verbose` to debug.
+
+## .gitignore
+
+The `.webreel` directory is created at the project root during recording (frames, intermediate files). Add it to `.gitignore`:
+
+```
+.webreel
+```
+
 ## Quick start
 
 ```bash
@@ -78,6 +105,15 @@ Re-apply overlays (cursor, HUD, sfx) to existing raw video without re-recording.
 ```bash
 webreel composite
 webreel composite hero
+```
+
+### install
+
+Download Chrome and ffmpeg to `~/.webreel`. Also use this to fix corrupted or broken binaries.
+
+```bash
+webreel install
+webreel install --force  # delete cached binaries and re-download
 ```
 
 ### validate

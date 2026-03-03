@@ -9,8 +9,10 @@
 
 ## Release process
 
+Changesets are created in their own dedicated PRs, separate from feature or bug-fix PRs. A feature PR should contain only the code changes. After it merges, open a follow-up PR that adds the changeset.
+
 1. Run `pnpm changeset` and select the packages that changed. Both `@webreel/core` and `webreel` are in a fixed versioning group, so a changeset for either bumps both.
-2. Commit the generated changeset file and push to `main`.
+2. Commit the generated changeset file in a standalone PR and merge it to `main`.
 3. The **Release** GitHub Action (`changesets/action`) will open a "chore: version packages" PR that bumps versions, updates `CHANGELOG.md` files, and updates the lockfile.
 4. Merge that PR. The action will then publish to npm (using `pnpm ci:publish`, which resolves `workspace:*`) and create GitHub releases.
 5. Always use `pnpm publish` (or `changeset publish`) instead of `npm publish`. `npm publish` does not resolve the pnpm `workspace:*` protocol and will publish broken packages.

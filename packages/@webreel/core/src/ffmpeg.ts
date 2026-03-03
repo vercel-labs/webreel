@@ -10,6 +10,8 @@ import {
   makeExecutable,
 } from "./download.js";
 
+export const FFMPEG_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "ffmpeg");
+
 // BtbN/FFmpeg-Builds: linked from ffmpeg.org, built via GitHub Actions.
 // Covers Linux (x64, arm64) and Windows (x64).
 const BTBN_BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest";
@@ -98,15 +100,14 @@ async function downloadEvermeet(cacheDir: string): Promise<string> {
 export async function ensureFfmpeg(): Promise<string> {
   if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
 
-  const cacheDir = resolve(homedir(), ".webreel", "bin", "ffmpeg");
-  const bin = findBinaryInDir(cacheDir, binaryName());
+  const bin = findBinaryInDir(FFMPEG_CACHE_DIR, binaryName());
   if (bin) return bin;
 
   try {
     if (process.platform === "darwin") {
-      return await downloadEvermeet(cacheDir);
+      return await downloadEvermeet(FFMPEG_CACHE_DIR);
     }
-    return await downloadBtbn(cacheDir);
+    return await downloadBtbn(FFMPEG_CACHE_DIR);
   } catch (err) {
     const sys = systemFfmpeg();
     if (sys) return sys;
