@@ -176,9 +176,11 @@ export class Recorder {
   private async captureLoop(client: CDPClient) {
     let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
+    let loopCount = 0;
 
     while (this.running) {
       try {
+        loopCount++;
         if (this.timeline) {
           this.timeline.tick();
           const pos = this.timeline.getCursorPosition();
@@ -191,11 +193,23 @@ export class Recorder {
               x: mx,
               y: my,
             });
-            await this.raceStop(
+            if (loopCount <= 3)
+              console.log(`[recorder] loop ${loopCount}: beginFrame start`);
+            const bfResult = await this.raceStop(
               client.send("HeadlessExperimental.beginFrame", {
                 interval: this.frameMs,
               }) as Promise<unknown>,
             );
+            if (loopCount <= 3)
+              console.log(
+                `[recorder] loop ${loopCount}: beginFrame done, result=${JSON.stringify(bfResult)}`,
+              );
+            if (bfResult === null) {
+              console.log(
+                `[recorder] beginFrame raceStop returned null (stopped), breaking`,
+              );
+              break;
+            }
           } else {
             const moved = mx !== this.lastMouseX || my !== this.lastMouseY;
             this.mouseThrottle++;
@@ -219,6 +233,7 @@ export class Recorder {
           if (!evalResult) break;
         }
 
+        if (loopCount <= 3) console.log(`[recorder] loop ${loopCount}: screenshot start`);
         const screenshotResult = await this.raceStop(
           client.Page.captureScreenshot({
             format: "jpeg",
@@ -226,7 +241,16 @@ export class Recorder {
             optimizeForSpeed: true,
           }),
         );
-        if (!screenshotResult) break;
+        if (!screenshotResult) {
+          console.log(
+            `[recorder] screenshot raceStop returned null (stopped) at loop ${loopCount}, breaking`,
+          );
+          break;
+        }
+        if (loopCount <= 3)
+          console.log(
+            `[recorder] loop ${loopCount}: screenshot done, size=${screenshotResult.data.length}`,
+          );
 
         const buffer = Buffer.from(screenshotResult.data, "base64");
 
@@ -258,6 +282,11 @@ export class Recorder {
       } catch (err) {
         if (!this.running) break;
         consecutiveErrors++;
+        if (loopCount <= 15)
+          console.error(
+            `[recorder] loop ${loopCount}: error #${consecutiveErrors}:`,
+            err,
+          );
         if (consecutiveErrors >= 10) {
           console.error(
             `Recording aborted after ${consecutiveErrors} consecutive capture failures:`,
@@ -267,6 +296,9 @@ export class Recorder {
         }
       }
     }
+    console.log(
+      `[recorder] captureLoop exited after ${loopCount} iterations, ${this.frameCount} frames`,
+    );
   }
 
   getTempVideoPath(): string {
