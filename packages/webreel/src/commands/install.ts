@@ -6,23 +6,48 @@ import { ensureChrome, ensureHeadlessShell, ensureFfmpeg } from "@webreel/core";
 
 const BIN_DIR = resolve(homedir(), ".webreel", "bin");
 
+interface InstallStep {
+  label: string;
+  subdir: string;
+  run: () => Promise<string>;
+}
+
+const STEPS: InstallStep[] = [
+  {
+    label: "Chrome (headless shell)",
+    subdir: "chrome-headless-shell",
+    run: ensureHeadlessShell,
+  },
+  { label: "Chrome (full, for preview)", subdir: "chrome", run: ensureChrome },
+  { label: "ffmpeg", subdir: "ffmpeg", run: ensureFfmpeg },
+];
+
 export const installCommand = new Command("install")
   .description("Download Chrome and ffmpeg to ~/.webreel")
   .option("--force", "delete cached binaries and re-download")
   .action(async (opts: { force?: boolean }) => {
-    if (opts.force) {
-      console.log("Clearing cached binaries...");
-      rmSync(BIN_DIR, { recursive: true, force: true });
+    const failed: string[] = [];
+
+    for (const step of STEPS) {
+      if (opts.force) {
+        rmSync(resolve(BIN_DIR, step.subdir), { recursive: true, force: true });
+      }
+
+      console.log(`Installing ${step.label}...`);
+      try {
+        const binPath = await step.run();
+        console.log(`  ${step.label} ready: ${binPath}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`  ${step.label} failed: ${msg}`);
+        failed.push(step.label);
+      }
     }
 
-    console.log("Ensuring Chrome (headless shell)...");
-    await ensureHeadlessShell();
+    if (failed.length > 0) {
+      console.error(`\nFailed to install: ${failed.join(", ")}`);
+      process.exit(1);
+    }
 
-    console.log("Ensuring Chrome (full, for preview)...");
-    await ensureChrome();
-
-    console.log("Ensuring ffmpeg...");
-    await ensureFfmpeg();
-
-    console.log("All dependencies installed.");
+    console.log("\nAll dependencies installed.");
   });

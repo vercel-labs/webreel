@@ -35,6 +35,14 @@ To override the auto-downloaded binaries, set these environment variables:
 
 If a recording fails with "No inspectable targets" or similar browser errors, the issue is almost certainly in the webreel config (wrong `waitFor`, missing element, timing), not a missing browser. Check the config and use `--verbose` to debug.
 
+## .gitignore
+
+The `.webreel` directory is created at the project root during recording (frames, intermediate files). Add it to `.gitignore`:
+
+```
+.webreel
+```
+
 ## Quick start
 
 ```bash
