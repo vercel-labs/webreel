@@ -216,6 +216,11 @@ export class Recorder {
           if (!evalResult) break;
         }
 
+        await client.Runtime.evaluate({
+          expression: "new Promise(r=>requestAnimationFrame(r))",
+          awaitPromise: true,
+        });
+
         const screenshotResult = await this.raceStop(
           client.Page.captureScreenshot({
             format: "jpeg",

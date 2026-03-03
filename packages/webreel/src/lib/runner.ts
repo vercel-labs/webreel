@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
@@ -7,7 +7,6 @@ import {
   type OverlayTheme,
   RecordingContext,
   connectCDP,
-  connectCDPForRecording,
   launchChrome,
   navigate,
   waitForSelector,
@@ -154,15 +153,7 @@ export async function runVideo(
   let recorder: Recorder | null = null;
 
   try {
-    let hasBeginFrameControl = false;
-    let client: CDPClient;
-    if (shouldRecord) {
-      const conn = await connectCDPForRecording(chrome.port);
-      client = conn.client;
-      hasBeginFrameControl = conn.hasBeginFrameControl;
-    } else {
-      client = await connectCDP(chrome.port);
-    }
+    const client = await connectCDP(chrome.port);
     clientRef = client;
     await client.Page.enable();
     await client.Runtime.enable();
@@ -237,12 +228,12 @@ export async function runVideo(
       const framesDir = saveFrames
         ? resolve(configDir, ".webreel", "frames", config.name)
         : undefined;
+      mkdirSync(dirname(outputPath), { recursive: true });
       recorder = new Recorder(width, height, {
         fps: config.fps,
         crf,
         framesDir,
         sfx: config.sfx,
-        hasBeginFrameControl,
       });
       recorder.setTimeline(timeline);
       await recorder.start(client, outputPath, ctx);
