@@ -7,6 +7,16 @@ description: Create and record scripted browser demo videos with webreel. Genera
 
 webreel records scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, and sound effects. You define steps in a JSON config, and webreel drives headless Chrome, captures frames, and encodes with ffmpeg.
 
+## Installation
+
+Install webreel as a project dependency so the version is pinned in the lockfile. This ensures deterministic recordings across machines and CI.
+
+```bash
+npm install webreel
+```
+
+If the project already has webreel in its dependencies, skip this step.
+
 ## Quick start
 
 ```bash
@@ -22,7 +32,7 @@ npx webreel preview my-demo
 npx webreel record my-demo
 ```
 
-Output lands in `videos/` by default (configurable via `outDir`).
+`npx` resolves to the locally installed version when webreel is in `devDependencies`. Output lands in `videos/` by default (configurable via `outDir`).
 
 ## CLI commands
 
