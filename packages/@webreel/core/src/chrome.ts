@@ -148,9 +148,6 @@ export async function ensureChrome(): Promise<string> {
 }
 
 export async function ensureHeadlessShell(): Promise<string> {
-  if (process.env.CHROME_HEADLESS_SHELL_PATH)
-    return process.env.CHROME_HEADLESS_SHELL_PATH;
-
   if (existsSync(HEADLESS_SHELL_CACHE_DIR)) {
     const cached = headlessShellPath(HEADLESS_SHELL_CACHE_DIR);
     if (cached) return cached;

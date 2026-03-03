@@ -1,7 +1,7 @@
 export const metadata = {
   title: "Commands",
   description:
-    "CLI commands available in webreel: init, record, preview, composite, and validate.",
+    "CLI commands available in webreel: init, record, preview, composite, install, and validate.",
 };
 
 # Commands
@@ -153,6 +153,32 @@ Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timeline
         <code>-c</code>, <code>--config</code>
       </td>
       <td>Path to config file (default: webreel.config.json)</td>
+    </tr>
+  </tbody>
+</table>
+
+## install
+
+Download Chrome and ffmpeg to `~/.webreel`. Both are also auto-downloaded on first run, but this command lets you pre-fetch dependencies or fix corrupted binaries.
+
+```bash
+webreel install
+webreel install --force
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>--force</code>
+      </td>
+      <td>Delete cached binaries and re-download</td>
     </tr>
   </tbody>
 </table>

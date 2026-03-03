@@ -20,7 +20,6 @@ const STEPS: InstallStep[] = [
   {
     label: "Chrome (headless shell)",
     cacheDir: HEADLESS_SHELL_CACHE_DIR,
-    envVar: "CHROME_HEADLESS_SHELL_PATH",
     run: ensureHeadlessShell,
   },
   {
@@ -50,13 +49,11 @@ export const installCommand = new Command("install")
         continue;
       }
 
-      const cacheDir = step.cacheDir;
-
       if (opts.force) {
-        rmSync(cacheDir, { recursive: true, force: true });
+        rmSync(step.cacheDir, { recursive: true, force: true });
       }
 
-      const cached = existsSync(cacheDir);
+      const cached = existsSync(step.cacheDir);
       console.log(
         cached
           ? `${step.label}: found in cache, verifying...`
