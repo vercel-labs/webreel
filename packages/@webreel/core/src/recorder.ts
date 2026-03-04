@@ -91,7 +91,7 @@ export class Recorder {
         "-framerate",
         String(this.fps),
         "-c:v",
-        "mjpeg",
+        "png",
         "-i",
         "pipe:0",
         "-c:v",
@@ -159,7 +159,6 @@ export class Recorder {
   }
 
   private async captureLoop(client: CDPClient) {
-    let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
 
     while (this.running) {
@@ -174,27 +173,17 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
-        const screenshotResult = await this.raceStop(
-          client.Page.captureScreenshot({
-            format: "jpeg",
-            quality: 60,
-            optimizeForSpeed: true,
+
+        // With --enable-begin-frame-control Chrome only renders when
+        // explicitly told to, giving deterministic frame timing.
+        const frameResult = await this.raceStop(
+          client.HeadlessExperimental.beginFrame({
+            screenshot: { format: "png", optimizeForSpeed: true },
           }),
         );
-        if (!screenshotResult) break;
+        if (!frameResult?.screenshotData) break;
 
-        const buffer = Buffer.from(screenshotResult.data, "base64");
-        const now = Date.now();
-        const elapsed = now - lastFrameTime;
-        const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
-
-        if (frameSlots > 1) {
-          for (let i = 0; i < frameSlots - 1; i++) {
-            if (this.timeline) this.timeline.tickDuplicate();
-            await this.writeFrame(buffer);
-            this.frameCount++;
-          }
-        }
+        const buffer = Buffer.from(frameResult.screenshotData, "base64");
 
         await this.writeFrame(buffer);
         this.frameCount++;
@@ -204,7 +193,6 @@ export class Recorder {
           writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), buffer);
         }
 
-        lastFrameTime = now;
         consecutiveErrors = 0;
       } catch (err) {
         if (!this.running) break;
