@@ -288,8 +288,12 @@ export async function launchChrome(
             new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
           ]);
           if (!exited) {
+            const exitPromise = new Promise<void>((resolve) => {
+              if (proc.exitCode !== null) return resolve();
+              proc.on("exit", () => resolve());
+            });
             proc.kill("SIGKILL");
-            await new Promise<void>((resolve) => proc.on("exit", () => resolve()));
+            await exitPromise;
           }
           rmSync(userDataDir, { recursive: true, force: true });
         },
