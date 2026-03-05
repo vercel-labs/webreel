@@ -100,8 +100,24 @@ export const recordCommand = new Command("record")
         return;
       }
 
-      for (const video of videos) {
-        await runVideo(video, { record: true, verbose, configDir, frames: opts.frames });
+      const onSignal = () => {
+        console.log("\nInterrupted. Cleaning up...");
+        process.exit(130);
+      };
+      process.on("SIGINT", onSignal);
+      process.on("SIGTERM", onSignal);
+      try {
+        for (const video of videos) {
+          await runVideo(video, {
+            record: true,
+            verbose,
+            configDir,
+            frames: opts.frames,
+          });
+        }
+      } finally {
+        process.off("SIGINT", onSignal);
+        process.off("SIGTERM", onSignal);
       }
 
       if (opts.watch) {
