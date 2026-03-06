@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { rmSync, renameSync } from "node:fs";
+import { rmSync } from "node:fs";
+import { moveFileSync } from "./fs.js";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SoundEvent } from "./types.js";
@@ -110,7 +111,7 @@ export function finalizeMp4(
         outputPath,
       ]);
     } else {
-      renameSync(tempVideo, outputPath);
+      moveFileSync(tempVideo, outputPath);
     }
     return;
   }
@@ -170,7 +171,7 @@ export function finalizeWebm(
   ]);
 
   if (events.length === 0 || !sfx) {
-    renameSync(silentWebm, outputPath);
+    moveFileSync(silentWebm, outputPath);
     return;
   }
 
