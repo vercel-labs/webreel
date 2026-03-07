@@ -270,10 +270,14 @@ export async function launchChrome(
       const cleanup = () => {
         try {
           proc.kill("SIGKILL");
-        } catch {}
+        } catch {
+          // Ignore cleanup errors during process exit.
+        }
         try {
           rmSync(userDataDir, { recursive: true, force: true });
-        } catch {}
+        } catch {
+          // Ignore cleanup errors during process exit.
+        }
       };
       process.on("exit", cleanup);
 
