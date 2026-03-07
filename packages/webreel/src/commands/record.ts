@@ -1,48 +1,35 @@
 import { Command } from "commander";
 import { watch, type FSWatcher } from "node:fs";
 import { resolve } from "node:path";
-import {
-  loadWebreelConfig,
-  resolveConfigPath,
-  getConfigDir,
-  filterVideosByName,
-} from "../lib/config.js";
+import { loadFullConfig, resolveConfigPaths, filterVideos } from "../lib/config.js";
 import { runVideo } from "../lib/runner.js";
-import type { WebreelConfig } from "../lib/types.js";
+import type { FullConfig, VideoConfig } from "../lib/types.js";
 
-export function collectIncludePaths(config: WebreelConfig, configPath: string): string[] {
-  const configDir = getConfigDir(configPath);
+export function collectIncludePaths(full: FullConfig): string[] {
   const paths: string[] = [];
-  const topIncludes = config.include ?? [];
-  for (const inc of topIncludes) {
-    paths.push(resolve(configDir, inc));
-  }
-  for (const video of config.videos) {
+  for (const video of full.videos) {
+    const videoDir = video.configDir;
     for (const inc of video.include ?? []) {
-      paths.push(resolve(configDir, inc));
+      paths.push(resolve(videoDir, inc));
     }
   }
   return [...new Set(paths)];
 }
 
-function printResolvedConfig(config: WebreelConfig): void {
+function printResolvedConfig(
+  videos: VideoConfig[],
+  videoSources?: Map<string, string>,
+): void {
   const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
   const bold = (s: string) => `\x1b[1m${s}\x1b[0m`;
   const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
 
-  console.log(bold("\nResolved configuration:\n"));
+  console.log(bold(`\n${videos.length} video(s):\n`));
 
-  if (config.baseUrl) console.log(`  baseUrl:      ${config.baseUrl}`);
-  if (config.outDir) console.log(`  outDir:       ${config.outDir}`);
-  if (config.viewport)
-    console.log(`  viewport:     ${config.viewport.width}x${config.viewport.height}`);
-  if (config.defaultDelay !== undefined)
-    console.log(`  defaultDelay: ${config.defaultDelay}ms`);
-
-  console.log(`\n  ${bold(`${config.videos.length} video(s):`)}\n`);
-
-  for (const video of config.videos) {
-    console.log(`  ${cyan(video.name)}`);
+  for (const video of videos) {
+    const source = videoSources?.get(video.name);
+    const label = source ? ` ${dim(`(${source})`)}` : "";
+    console.log(`  ${cyan(video.name)}${label}`);
     console.log(`    url:      ${video.url}`);
     if (video.viewport)
       console.log(`    viewport: ${video.viewport.width}x${video.viewport.height}`);
@@ -68,10 +55,20 @@ function printResolvedConfig(config: WebreelConfig): void {
   }
 }
 
+function accumulate(val: string, prev: string[]): string[] {
+  return [...prev, val];
+}
+
 export const recordCommand = new Command("record")
   .description("Record videos")
   .argument("[videos...]", "Video names to record (default: all)")
-  .option("-c, --config <path>", "Path to config file (default: webreel.config.json)")
+  .option("-c, --config <path>", "Config file (repeatable)", accumulate, [])
+  .option(
+    "-p, --project <name>",
+    "Filter by project name/glob (repeatable)",
+    accumulate,
+    [],
+  )
   .option("--verbose", "Log each step as it executes")
   .option("--watch", "Re-record when config files change")
   .option("--dry-run", "Print the resolved config and step list without recording")
@@ -80,28 +77,34 @@ export const recordCommand = new Command("record")
     async (
       videoNames: string[],
       opts: {
-        config?: string;
+        config: string[];
+        project: string[];
         verbose?: boolean;
         watch?: boolean;
         dryRun?: boolean;
         frames?: boolean;
       },
     ) => {
-      const configPath = resolveConfigPath(opts.config);
-      const configDir = getConfigDir(configPath);
+      const configPaths = await resolveConfigPaths(
+        opts.config.length > 0 ? opts.config : undefined,
+      );
       const verbose = opts.verbose ?? false;
 
-      const webreelConfig = await loadWebreelConfig(configPath);
-      const videos = filterVideosByName(webreelConfig.videos, videoNames);
+      const fullConfig = await loadFullConfig(configPaths);
+      const videos = filterVideos(fullConfig.videos, videoNames, opts.project);
 
       if (opts.dryRun) {
-        const filtered = { ...webreelConfig, videos };
-        printResolvedConfig(filtered);
+        printResolvedConfig(videos, fullConfig.videoSources);
         return;
       }
 
       for (const video of videos) {
-        await runVideo(video, { record: true, verbose, configDir, frames: opts.frames });
+        await runVideo(video, {
+          record: true,
+          verbose,
+          configDir: video.configDir,
+          frames: opts.frames,
+        });
       }
 
       if (opts.watch) {
@@ -115,10 +118,12 @@ export const recordCommand = new Command("record")
           watchers.length = 0;
         };
 
-        const setupWatchers = (cfg: WebreelConfig) => {
+        const setupWatchers = (full: FullConfig) => {
           closeAllWatchers();
-          watchers.push(watch(configPath, onFileChange));
-          for (const p of collectIncludePaths(cfg, configPath)) {
+          for (const cp of configPaths) {
+            watchers.push(watch(cp, onFileChange));
+          }
+          for (const p of collectIncludePaths(full)) {
             watchers.push(watch(p, onFileChange));
           }
         };
@@ -129,16 +134,20 @@ export const recordCommand = new Command("record")
           timer = setTimeout(async () => {
             timer = null;
             console.log("\nRe-recording...");
-            let latestConfig: WebreelConfig | null = null;
+            let latestConfig: FullConfig | null = null;
             const run = (async () => {
               try {
-                latestConfig = await loadWebreelConfig(configPath);
-                const updatedVideos = filterVideosByName(latestConfig.videos, videoNames);
+                latestConfig = await loadFullConfig(configPaths);
+                const updatedVideos = filterVideos(
+                  latestConfig.videos,
+                  videoNames,
+                  opts.project,
+                );
                 for (const video of updatedVideos) {
                   await runVideo(video, {
                     record: true,
                     verbose,
-                    configDir,
+                    configDir: video.configDir,
                     frames: opts.frames,
                   });
                 }
@@ -146,7 +155,7 @@ export const recordCommand = new Command("record")
                 console.error(`Error re-recording:`, err);
               } finally {
                 recordingInProgress = null;
-                setupWatchers(latestConfig ?? webreelConfig);
+                setupWatchers(latestConfig ?? fullConfig);
               }
             })();
             recordingInProgress = run;
@@ -154,7 +163,7 @@ export const recordCommand = new Command("record")
           }, 300);
         };
 
-        setupWatchers(webreelConfig);
+        setupWatchers(fullConfig);
 
         process.on("SIGINT", async () => {
           closeAllWatchers();

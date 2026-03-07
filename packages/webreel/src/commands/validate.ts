@@ -1,57 +1,86 @@
 import { Command } from "commander";
 import { readFileSync } from "node:fs";
-import { basename, extname } from "node:path";
+import { basename, extname, relative } from "node:path";
 import { parse as parseJsonc } from "jsonc-parser";
 import {
-  resolveConfigPath,
+  resolveConfigPaths,
   validateWebreelConfig,
   parseSchemaVersion,
   formatValidationErrors,
   buildLineMap,
+  loadFullConfig,
   loadWebreelConfig,
 } from "../lib/config.js";
 
 const JSON_EXTENSIONS = new Set([".json"]);
 
-export const validateCommand = new Command("validate")
-  .description("Validate a webreel config file")
-  .option("-c, --config <path>", "Path to config file (default: webreel.config.json)")
-  .action(async (opts: { config?: string }) => {
-    const configPath = resolveConfigPath(opts.config);
-    const name = basename(configPath);
-    const ext = extname(configPath);
+function accumulate(val: string, prev: string[]): string[] {
+  return [...prev, val];
+}
 
-    if (JSON_EXTENSIONS.has(ext)) {
-      const raw = readFileSync(configPath, "utf-8");
-      let parsed: unknown;
+export const validateCommand = new Command("validate")
+  .description("Validate webreel config file(s)")
+  .option("-c, --config <path>", "Config file (repeatable)", accumulate, [])
+  .action(async (opts: { config: string[] }) => {
+    const configPaths = await resolveConfigPaths(
+      opts.config.length > 0 ? opts.config : undefined,
+    );
+
+    const errors: string[] = [];
+
+    for (const configPath of configPaths) {
+      const name = basename(configPath);
+      const ext = extname(configPath);
+
       try {
-        parsed = parseJsonc(raw);
+        if (JSON_EXTENSIONS.has(ext)) {
+          const raw = readFileSync(configPath, "utf-8");
+          let parsed: unknown;
+          try {
+            parsed = parseJsonc(raw);
+          } catch (err) {
+            errors.push(
+              `${name}: invalid JSON - ${err instanceof Error ? err.message : String(err)}`,
+            );
+            continue;
+          }
+
+          const schemaUrl =
+            typeof parsed === "object" && parsed !== null
+              ? (parsed as Record<string, unknown>).$schema
+              : undefined;
+          const version = parseSchemaVersion(
+            typeof schemaUrl === "string" ? schemaUrl : undefined,
+          );
+          const validationErrors = validateWebreelConfig(parsed, version);
+
+          if (validationErrors.length > 0) {
+            const lineMap = buildLineMap(raw);
+            errors.push(formatValidationErrors(name, validationErrors, lineMap));
+          } else {
+            console.log(`${name}: valid`);
+          }
+        } else {
+          await loadWebreelConfig(configPath);
+          console.log(`${name}: valid`);
+        }
       } catch (err) {
-        throw new Error(
-          `${name}: invalid JSON - ${err instanceof Error ? err.message : String(err)}`,
-          {
-            cause: err,
-          },
+        errors.push(
+          `${relative(process.cwd(), configPath)}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }
 
-      const schemaUrl =
-        typeof parsed === "object" && parsed !== null
-          ? (parsed as Record<string, unknown>).$schema
-          : undefined;
-      const version = parseSchemaVersion(
-        typeof schemaUrl === "string" ? schemaUrl : undefined,
-      );
-      const errors = validateWebreelConfig(parsed, version);
-
-      if (errors.length === 0) {
-        console.log(`${name}: valid`);
-      } else {
-        const lineMap = buildLineMap(raw);
-        throw new Error(formatValidationErrors(name, errors, lineMap));
+    if (configPaths.length > 1) {
+      try {
+        const full = await loadFullConfig(configPaths);
+        console.log(`Cross-config: ${full.videos.length} video(s), no duplicates`);
+      } catch (err) {
+        errors.push(`Cross-config: ${err instanceof Error ? err.message : String(err)}`);
       }
-    } else {
-      await loadWebreelConfig(configPath);
-      console.log(`${name}: valid`);
+    }
+
+    if (errors.length > 0) {
+      throw new Error(errors.join("\n\n"));
     }
   });

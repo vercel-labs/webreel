@@ -133,10 +133,27 @@ These fields apply as defaults to all videos and can be overridden per-video.
     </tr>
     <tr>
       <td>
+        <code>extends</code>
+      </td>
+      <td>-</td>
+      <td>Path to a base config file to inherit from</td>
+    </tr>
+    <tr>
+      <td>
+        <code>scenarios</code>
+      </td>
+      <td>-</td>
+      <td>Array of glob patterns and/or inline scenario configs</td>
+    </tr>
+    <tr>
+      <td>
         <code>videos</code>
       </td>
-      <td>required</td>
-      <td>Object mapping video names to their configurations</td>
+      <td>required*</td>
+      <td>
+        Object mapping video names to their configurations. Optional when{" "}
+        <code>scenarios</code> is present.
+      </td>
     </tr>
   </tbody>
 </table>
@@ -906,6 +923,114 @@ import type { InputWebreelConfig } from "webreel";
 ```
 
 JavaScript configs (`webreel.config.js`, `webreel.config.mjs`) work the same way: just `export default` a config object.
+
+## extends
+
+A config file can inherit from a base config using the `extends` field. The base config's top-level options, theme, sfx, and videos are merged with the child config. Child values take precedence.
+
+```json
+// base.json
+{
+  "baseUrl": "https://myapp.com",
+  "viewport": "desktop",
+  "theme": { "cursor": { "size": 32 } },
+  "videos": {
+    "shared-intro": { "url": "/", "steps": [] }
+  }
+}
+```
+
+```json
+// webreel.config.json
+{
+  "extends": "./base.json",
+  "theme": { "cursor": { "hotspot": "center" } },
+  "videos": {
+    "hero": { "url": "/hero", "steps": [] }
+  }
+}
+```
+
+The resolved config inherits `baseUrl`, `viewport`, and the `shared-intro` video from the base. The `theme.cursor` is shallow-merged: `{ "size": 32, "hotspot": "center" }`. The child's `hero` video is added alongside the base's `shared-intro`.
+
+Chains are supported (a base can extend another base), up to 10 levels deep. Circular references are detected and reported.
+
+## scenarios
+
+For projects with many demo videos, the `scenarios` field lets you organize configs across multiple files or inline groups. Each scenario is loaded independently, and all videos are collected into a single run.
+
+```json
+{
+  "baseUrl": "https://myapp.com",
+  "scenarios": [
+    "./demos/*.webreel.json",
+    {
+      "extends": true,
+      "videos": {
+        "login": { "url": "/login", "steps": [] }
+      }
+    }
+  ],
+  "videos": {
+    "hero": { "url": "/", "steps": [] }
+  }
+}
+```
+
+Scenario entries can be:
+
+- **Glob strings** that match config files (e.g. `"./demos/*.webreel.json"`). Each matched file is loaded as a standalone config.
+- **Inline objects** with their own `videos`, `baseUrl`, `theme`, etc. Use `"extends": true` to inherit top-level options from the root config.
+
+The `videos` field is optional when `scenarios` is present. This lets you use a root config purely as an orchestrator.
+
+### defineScenario
+
+For TypeScript configs, use the `defineScenario` helper for inline scenario objects:
+
+```ts
+import { defineConfig, defineScenario } from "webreel";
+
+export default defineConfig({
+  baseUrl: "https://myapp.com",
+  scenarios: [
+    "./demos/*.webreel.ts",
+    defineScenario({
+      extends: true,
+      videos: {
+        login: { url: "/login", steps: [] },
+      },
+    }),
+  ],
+});
+```
+
+## Multiple configs
+
+Use `--config` (or `-c`) multiple times to load several config files in a single run. All videos are merged and deduplicated by name.
+
+```bash
+webreel record -c web.config.json -c mobile.config.json
+webreel list -c ./configs/*.json
+```
+
+Glob patterns are supported. If any two configs define a video with the same name, an error is reported.
+
+## --project filtering
+
+The `--project` flag (or `-p`) filters videos by name using exact match or glob patterns. It can be repeated.
+
+```bash
+webreel record -p hero -p "dashboard-*"
+webreel list -p "mobile-*"
+```
+
+When combined with positional video names, the results are unioned:
+
+```bash
+# Records "hero" (by name) and all videos matching "dashboard-*" (by project)
+webreel record hero -p "dashboard-*"
+```
 
 ## Dry run
 
