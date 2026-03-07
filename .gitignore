@@ -13,3 +13,8 @@ coverage
 *.log
 package-lock.json
 demo-reel.mp4
+
+.idea/
+.pi/
+videos/
+webreel.config.json
