@@ -145,10 +145,19 @@ importers:
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
+      picomatch:
+        specifier: ^4.0.3
+        version: 4.0.3
+      tinyglobby:
+        specifier: ^0.2.15
+        version: 0.2.15
     devDependencies:
       '@types/node':
         specifier: 25.3.0
         version: 25.3.0
+      '@types/picomatch':
+        specifier: ^4.0.2
+        version: 4.0.2
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -1156,6 +1165,9 @@ packages:
 
   '@types/node@25.3.0':
     resolution: {integrity: sha512-4K3bqJpXpqfg2XKGK9bpDTc6xO/xoUP/RBWS7AtRMug6zZFaRekiLzjVtAoZMquxoAbzBvy5nxQ7veS5eYzf8A==}
+
+  '@types/picomatch@4.0.2':
+    resolution: {integrity: sha512-qHHxQ+P9PysNEGbALT8f8YOSHW0KJu6l2xU8DYY0fu/EmGxXdVnuTLvFUvBgPJMSqXq29SYHveejeAha+4AYgA==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -3566,6 +3578,8 @@ snapshots:
   '@types/node@25.3.0':
     dependencies:
       undici-types: 7.18.2
+
+  '@types/picomatch@4.0.2': {}
 
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:

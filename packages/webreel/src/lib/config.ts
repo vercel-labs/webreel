@@ -1,8 +1,10 @@
 import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname, isAbsolute, extname } from "node:path";
+import { resolve, dirname, isAbsolute, extname, relative } from "node:path";
 import { parse as parseJsonc, parseTree, getNodePath } from "jsonc-parser";
 import { createJiti } from "jiti";
-import type { VideoConfig, WebreelConfig } from "./types.js";
+import { glob, isDynamicPattern } from "tinyglobby";
+import picomatch from "picomatch";
+import type { VideoConfig, WebreelConfig, FullConfig } from "./types.js";
 import { VIEWPORT_PRESETS } from "./types.js";
 
 export const DEFAULT_CONFIG_NAME = "webreel.config";
@@ -51,7 +53,10 @@ async function resolveIncludes(
       parsed = parseJsonc(raw) as Record<string, unknown>;
     } else {
       try {
-        const mod = await loadTsConfig(absPath);
+        let mod = await loadTsConfig(absPath);
+        if (typeof mod === "object" && mod !== null && "default" in mod) {
+          mod = (mod as Record<string, unknown>).default;
+        }
         if (typeof mod !== "object" || mod === null) {
           throw new Error(`Include file must export an object: ${absPath}`);
         }
@@ -155,28 +160,202 @@ function substituteEnvVars(obj: unknown): unknown {
   return obj;
 }
 
+const MAX_EXTENDS_DEPTH = 10;
+
+const MERGEABLE_TOP_LEVEL_KEYS = [
+  "baseUrl",
+  "viewport",
+  "outDir",
+  "include",
+  "defaultDelay",
+  "clickDwell",
+] as const;
+
+function mergeTheme(
+  base: Record<string, unknown> | undefined,
+  child: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!base && !child) return undefined;
+  if (!base) return child;
+  if (!child) return base;
+  const merged: Record<string, unknown> = {};
+  const allKeys = new Set([...Object.keys(base), ...Object.keys(child)]);
+  for (const key of allKeys) {
+    const bVal = base[key];
+    const cVal = child[key];
+    if (
+      typeof bVal === "object" &&
+      bVal !== null &&
+      typeof cVal === "object" &&
+      cVal !== null
+    ) {
+      merged[key] = { ...bVal, ...cVal };
+    } else {
+      merged[key] = cVal !== undefined ? cVal : bVal;
+    }
+  }
+  return merged;
+}
+
+function mergeSfx(
+  base: Record<string, unknown> | undefined,
+  child: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!base && !child) return undefined;
+  if (!base) return child;
+  if (!child) return base;
+  return { ...base, ...child };
+}
+
+async function loadRawConfig(filePath: string): Promise<Record<string, unknown>> {
+  const ext = extname(filePath);
+  if (JSON_EXTENSIONS.has(ext)) {
+    const raw = readFileSync(filePath, "utf-8");
+    return substituteEnvVars(parseJsonc(raw)) as Record<string, unknown>;
+  }
+  let mod = await loadTsConfig(filePath);
+  if (typeof mod === "object" && mod !== null && "default" in mod) {
+    mod = (mod as Record<string, unknown>).default;
+  }
+  if (typeof mod !== "object" || mod === null) {
+    throw new Error(`Config file must export an object: ${filePath}`);
+  }
+  return substituteEnvVars(mod) as Record<string, unknown>;
+}
+
+async function resolveExtends(
+  parsed: Record<string, unknown>,
+  filePath: string,
+  seen: Set<string>,
+  depth: number,
+): Promise<Record<string, unknown>> {
+  const extendsValue = parsed.extends;
+  if (extendsValue === undefined) return parsed;
+
+  if (extendsValue === true) {
+    throw new Error(
+      `"extends: true" is only valid in inline scenario configs. Use a file path instead. (in ${filePath})`,
+    );
+  }
+
+  if (typeof extendsValue !== "string" || extendsValue.length === 0) {
+    throw new Error(`"extends" must be a non-empty string (in ${filePath})`);
+  }
+
+  if (depth >= MAX_EXTENDS_DEPTH) {
+    throw new Error(`"extends" chain too deep (max ${MAX_EXTENDS_DEPTH})`);
+  }
+
+  const baseDir = dirname(resolve(filePath));
+  const basePath = resolve(baseDir, extendsValue);
+
+  if (!existsSync(basePath)) {
+    throw new Error(
+      `"extends" target not found: ${extendsValue} (referenced from ${resolve(filePath)})`,
+    );
+  }
+
+  const absBasePath = resolve(basePath);
+  if (seen.has(absBasePath)) {
+    const chain = [...seen, absBasePath].join(" -> ");
+    throw new Error(`Circular "extends" detected: ${chain}`);
+  }
+  seen.add(absBasePath);
+
+  let baseParsed = await loadRawConfig(absBasePath);
+  baseParsed = await resolveExtends(baseParsed, absBasePath, seen, depth + 1);
+
+  const baseIncludeDir = dirname(absBasePath);
+  if (Array.isArray(baseParsed.include)) {
+    baseParsed.include = baseParsed.include.map((inc: unknown) =>
+      typeof inc === "string" && !isAbsolute(inc) ? resolve(baseIncludeDir, inc) : inc,
+    );
+  }
+
+  const merged: Record<string, unknown> = {};
+
+  for (const key of MERGEABLE_TOP_LEVEL_KEYS) {
+    if (baseParsed[key] !== undefined) merged[key] = baseParsed[key];
+  }
+
+  merged.theme = mergeTheme(
+    baseParsed.theme as Record<string, unknown> | undefined,
+    parsed.theme as Record<string, unknown> | undefined,
+  );
+  merged.sfx = mergeSfx(
+    baseParsed.sfx as Record<string, unknown> | undefined,
+    parsed.sfx as Record<string, unknown> | undefined,
+  );
+
+  for (const key of MERGEABLE_TOP_LEVEL_KEYS) {
+    if (parsed[key] !== undefined) merged[key] = parsed[key];
+  }
+
+  if (parsed.include !== undefined) {
+    const childDir = dirname(resolve(filePath));
+    merged.include = (parsed.include as unknown[]).map((inc: unknown) =>
+      typeof inc === "string" && !isAbsolute(inc) ? resolve(childDir, inc) : inc,
+    );
+  }
+
+  const baseVideos =
+    baseParsed.videos != null &&
+    typeof baseParsed.videos === "object" &&
+    !Array.isArray(baseParsed.videos)
+      ? { ...(baseParsed.videos as Record<string, unknown>) }
+      : {};
+
+  const childVideos =
+    parsed.videos != null &&
+    typeof parsed.videos === "object" &&
+    !Array.isArray(parsed.videos)
+      ? (parsed.videos as Record<string, unknown>)
+      : {};
+
+  const mergedVideos = { ...baseVideos, ...childVideos };
+
+  return {
+    ...merged,
+    $schema: parsed.$schema,
+    videos: Object.keys(mergedVideos).length > 0 ? mergedVideos : undefined,
+    scenarios: parsed.scenarios,
+  };
+}
+
 async function buildConfigFromParsed(
   parsed: Record<string, unknown>,
   filePath: string,
 ): Promise<WebreelConfig> {
-  if (
-    !parsed.videos ||
-    typeof parsed.videos !== "object" ||
-    Array.isArray(parsed.videos)
-  ) {
-    throw new Error(`Config must contain a "videos" object`);
+  const resolved = await resolveExtends(
+    parsed,
+    filePath,
+    new Set([resolve(filePath)]),
+    0,
+  );
+
+  const hasVideos =
+    resolved.videos != null &&
+    typeof resolved.videos === "object" &&
+    !Array.isArray(resolved.videos);
+  const hasScenarios = Array.isArray(resolved.scenarios) && resolved.scenarios.length > 0;
+
+  if (!hasVideos && !hasScenarios) {
+    throw new Error(`Config must contain a "videos" object or a "scenarios" array`);
   }
-  const videosObj = parsed.videos as Record<string, Record<string, unknown>>;
+
+  const videosObj = hasVideos
+    ? (resolved.videos as Record<string, Record<string, unknown>>)
+    : {};
   const configDir = dirname(resolve(filePath));
-  const outDir = resolve(configDir, (parsed.outDir as string) ?? "videos");
+  const outDir = resolve(configDir, (resolved.outDir as string) ?? "videos");
   const defaults = {
-    baseUrl: parsed.baseUrl as string | undefined,
-    viewport: resolveViewportValue(parsed.viewport),
-    theme: parsed.theme as WebreelConfig["theme"],
-    sfx: parsed.sfx as WebreelConfig["sfx"],
-    include: parsed.include as string[] | undefined,
-    defaultDelay: parsed.defaultDelay as number | undefined,
-    clickDwell: parsed.clickDwell as number | undefined,
+    baseUrl: resolved.baseUrl as string | undefined,
+    viewport: resolveViewportValue(resolved.viewport),
+    theme: resolved.theme as WebreelConfig["theme"],
+    sfx: resolved.sfx as WebreelConfig["sfx"],
+    include: resolved.include as string[] | undefined,
+    defaultDelay: resolved.defaultDelay as number | undefined,
+    clickDwell: resolved.clickDwell as number | undefined,
   };
 
   const videoList: VideoConfig[] = [];
@@ -186,21 +365,21 @@ async function buildConfigFromParsed(
       videoBody.viewport =
         resolveViewportPreset(videoBody.viewport as string) ?? videoBody.viewport;
     }
-    const video = { ...videoBody, name } as unknown as VideoConfig;
-    const resolved = resolveVideoDefaults(video, defaults, outDir, configDir);
-    videoList.push(await resolveVideo(resolved, filePath));
+    const video = { ...videoBody, name, configDir } as unknown as VideoConfig;
+    const resolvedVideo = resolveVideoDefaults(video, defaults, outDir, configDir);
+    videoList.push(await resolveVideo(resolvedVideo, filePath));
   }
 
   return {
-    $schema: parsed.$schema as string | undefined,
-    outDir: parsed.outDir as string | undefined,
-    baseUrl: parsed.baseUrl as string | undefined,
-    viewport: resolveViewportValue(parsed.viewport),
-    theme: parsed.theme as WebreelConfig["theme"],
-    sfx: parsed.sfx as WebreelConfig["sfx"],
-    include: parsed.include as string[] | undefined,
-    defaultDelay: parsed.defaultDelay as number | undefined,
-    clickDwell: parsed.clickDwell as number | undefined,
+    $schema: resolved.$schema as string | undefined,
+    outDir: resolved.outDir as string | undefined,
+    baseUrl: resolved.baseUrl as string | undefined,
+    viewport: resolveViewportValue(resolved.viewport),
+    theme: resolved.theme as WebreelConfig["theme"],
+    sfx: resolved.sfx as WebreelConfig["sfx"],
+    include: resolved.include as string[] | undefined,
+    defaultDelay: resolved.defaultDelay as number | undefined,
+    clickDwell: resolved.clickDwell as number | undefined,
     videos: videoList,
   };
 }
@@ -228,7 +407,11 @@ export async function loadWebreelConfig(filePath: string): Promise<WebreelConfig
     return buildConfigFromParsed(parsed as Record<string, unknown>, filePath);
   }
 
-  const raw = await loadTsConfig(filePath);
+  let raw = await loadTsConfig(filePath);
+
+  if (typeof raw === "object" && raw !== null && "default" in raw) {
+    raw = (raw as Record<string, unknown>).default;
+  }
 
   if (typeof raw !== "object" || raw === null) {
     throw new Error(`Config file must export an object: ${filePath}`);
@@ -294,6 +477,7 @@ const VALID_ACTIONS = new Set([
 
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   "$schema",
+  "extends",
   "outDir",
   "baseUrl",
   "viewport",
@@ -302,6 +486,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "include",
   "defaultDelay",
   "clickDwell",
+  "scenarios",
   "videos",
 ]);
 
@@ -803,6 +988,118 @@ function validateTheme(theme: unknown, prefix: string): ValidationError[] {
   return errors;
 }
 
+const KNOWN_SCENARIO_KEYS = new Set([
+  "extends",
+  "outDir",
+  "baseUrl",
+  "viewport",
+  "theme",
+  "sfx",
+  "include",
+  "defaultDelay",
+  "clickDwell",
+  "videos",
+]);
+
+function validateScenarios(scenarios: unknown, prefix: string): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!Array.isArray(scenarios)) {
+    errors.push({ path: prefix, message: "Must be an array" });
+    return errors;
+  }
+  for (let i = 0; i < scenarios.length; i++) {
+    const item = scenarios[i];
+    const itemPath = `${prefix}[${i}]`;
+
+    if (typeof item === "string") {
+      if (item.length === 0) {
+        errors.push({ path: itemPath, message: "Must be a non-empty string" });
+      }
+      continue;
+    }
+
+    if (typeof item !== "object" || item === null) {
+      errors.push({
+        path: itemPath,
+        message: "Must be a glob string or an inline scenario object",
+      });
+      continue;
+    }
+
+    const s = item as Record<string, unknown>;
+
+    errors.push(...checkUnknownKeys(s, KNOWN_SCENARIO_KEYS, itemPath));
+
+    if (s.extends !== undefined) {
+      if (
+        typeof s.extends !== "boolean" &&
+        (typeof s.extends !== "string" || s.extends.length === 0)
+      ) {
+        errors.push({
+          path: `${itemPath}.extends`,
+          message: "Must be true, false, or a non-empty string",
+        });
+      }
+    }
+
+    if (
+      s.videos === undefined ||
+      s.videos === null ||
+      typeof s.videos !== "object" ||
+      Array.isArray(s.videos)
+    ) {
+      errors.push({
+        path: `${itemPath}.videos`,
+        message: "Required, must be an object mapping names to video configs",
+      });
+      continue;
+    }
+
+    const scenarioVideos = s.videos as Record<string, unknown>;
+    for (const [name, video] of Object.entries(scenarioVideos)) {
+      const vPrefix = `${itemPath}.videos.${name}`;
+      if (typeof video !== "object" || video === null) {
+        errors.push({ path: vPrefix, message: "Must be a video config object" });
+        continue;
+      }
+      const d = video as Record<string, unknown>;
+      errors.push(...checkUnknownKeys(d, KNOWN_VIDEO_KEYS, vPrefix));
+      if (typeof d.url !== "string" || d.url.length === 0) {
+        errors.push({
+          path: `${vPrefix}.url`,
+          message: "Required, must be a non-empty string",
+        });
+      }
+      if (!Array.isArray(d.steps)) {
+        errors.push({ path: `${vPrefix}.steps`, message: "Required, must be an array" });
+      } else {
+        for (let j = 0; j < d.steps.length; j++) {
+          errors.push(
+            ...validateStep(d.steps[j], j).map((e) => ({
+              ...e,
+              path: `${vPrefix}.${e.path}`,
+            })),
+          );
+        }
+      }
+    }
+
+    if (s.viewport !== undefined) {
+      errors.push(...validateViewport(s.viewport, `${itemPath}.viewport`));
+    }
+    if (s.theme !== undefined) {
+      errors.push(...validateTheme(s.theme, `${itemPath}.theme`));
+    }
+    if (s.sfx !== undefined) {
+      errors.push(...validateSfx(s.sfx, `${itemPath}.sfx`));
+    }
+    if (s.include !== undefined) {
+      errors.push(...validateInclude(s.include, `${itemPath}.include`));
+    }
+  }
+  return errors;
+}
+
 export function validateWebreelConfig(
   config: unknown,
   version: number = CURRENT_SCHEMA_VERSION,
@@ -826,6 +1123,20 @@ export function validateWebreelConfig(
   const c = config as Record<string, unknown>;
 
   errors.push(...checkUnknownKeys(c, KNOWN_TOP_LEVEL_KEYS, ""));
+
+  if (c.extends !== undefined) {
+    if (typeof c.extends === "boolean") {
+      if (c.extends !== true) {
+        errors.push({ path: "extends", message: "Must be true or a non-empty string" });
+      }
+    } else if (typeof c.extends !== "string" || c.extends.length === 0) {
+      errors.push({ path: "extends", message: "Must be true or a non-empty string" });
+    }
+  }
+
+  if (c.scenarios !== undefined) {
+    errors.push(...validateScenarios(c.scenarios, "scenarios"));
+  }
 
   if (c.outDir !== undefined && (typeof c.outDir !== "string" || c.outDir.length === 0)) {
     errors.push({ path: "outDir", message: "Must be a non-empty string" });
@@ -865,15 +1176,22 @@ export function validateWebreelConfig(
     errors.push(...validateSfx(c.sfx, "sfx"));
   }
 
-  if (
-    c.videos === undefined ||
-    c.videos === null ||
-    typeof c.videos !== "object" ||
-    Array.isArray(c.videos)
-  ) {
+  const hasScenarios = Array.isArray(c.scenarios) && c.scenarios.length > 0;
+
+  if (c.videos === undefined || c.videos === null) {
+    if (!hasScenarios) {
+      errors.push({
+        path: "videos",
+        message: "Required, must be an object mapping names to video configs",
+      });
+    }
+    return errors;
+  }
+
+  if (typeof c.videos !== "object" || Array.isArray(c.videos)) {
     errors.push({
       path: "videos",
-      message: "Required, must be an object mapping names to video configs",
+      message: "Must be an object mapping names to video configs",
     });
     return errors;
   }
@@ -881,7 +1199,7 @@ export function validateWebreelConfig(
   const videos = c.videos as Record<string, unknown>;
   const names = Object.keys(videos);
 
-  if (names.length === 0) {
+  if (names.length === 0 && !hasScenarios) {
     errors.push({ path: "videos", message: "Must contain at least one video" });
   }
 
@@ -1124,6 +1442,66 @@ export function filterVideosByName(
   return filtered;
 }
 
+export function filterVideosByProject(
+  videos: VideoConfig[],
+  patterns: string[],
+): VideoConfig[] {
+  if (patterns.length === 0) return videos;
+
+  const result = new Set<string>();
+  const exactMissing: string[] = [];
+
+  for (const pattern of patterns) {
+    if (isDynamicPattern(pattern)) {
+      const matcher = picomatch(pattern);
+      for (const v of videos) {
+        if (matcher(v.name)) result.add(v.name);
+      }
+    } else {
+      const found = videos.find((v) => v.name === pattern);
+      if (found) {
+        result.add(found.name);
+      } else {
+        exactMissing.push(pattern);
+      }
+    }
+  }
+
+  if (exactMissing.length > 0) {
+    const available = videos.map((v) => v.name).join(", ");
+    throw new Error(
+      `Project(s) not found: ${exactMissing.join(", ")}. Available: ${available}`,
+    );
+  }
+
+  if (result.size === 0) {
+    throw new Error(`No videos matched --project patterns: ${patterns.join(", ")}`);
+  }
+
+  return videos.filter((v) => result.has(v.name));
+}
+
+export function filterVideos(
+  videos: VideoConfig[],
+  names: string[],
+  projects: string[],
+): VideoConfig[] {
+  if (names.length === 0 && projects.length === 0) return videos;
+  if (names.length > 0 && projects.length === 0) return filterVideosByName(videos, names);
+  if (names.length === 0 && projects.length > 0)
+    return filterVideosByProject(videos, projects);
+
+  const byName = new Set(filterVideosByName(videos, names).map((v) => v.name));
+  const byProject = new Set(filterVideosByProject(videos, projects).map((v) => v.name));
+  const union = new Set([...byName, ...byProject]);
+
+  if (union.size === 0) {
+    throw new Error("No videos matched the given filters.");
+  }
+
+  return videos.filter((v) => union.has(v.name));
+}
+
 export function resolveConfigPath(configPath?: string): string {
   if (configPath) {
     const resolved = resolve(configPath);
@@ -1152,4 +1530,225 @@ export function resolveConfigPath(configPath?: string): string {
   throw new Error(
     `No config file found. Create a ${DEFAULT_CONFIG_FILE} or specify one with --config.`,
   );
+}
+
+export async function resolveConfigPaths(configOpt?: string[]): Promise<string[]> {
+  if (!configOpt || configOpt.length === 0) {
+    return [resolveConfigPath()];
+  }
+
+  const resolved = new Set<string>();
+
+  for (const pattern of configOpt) {
+    if (isDynamicPattern(pattern)) {
+      const matches = await glob([pattern], {
+        cwd: process.cwd(),
+        absolute: true,
+      });
+      if (matches.length === 0) {
+        throw new Error(`No config files matched: "${pattern}"`);
+      }
+      for (const m of matches) resolved.add(resolve(m));
+    } else {
+      const abs = resolve(pattern);
+      if (!existsSync(abs)) {
+        throw new Error(`Config file not found: ${abs}`);
+      }
+      resolved.add(abs);
+    }
+  }
+
+  if (resolved.size === 0) {
+    throw new Error("No config files found.");
+  }
+
+  return [...resolved];
+}
+
+async function resolveScenarios(
+  rootParsed: Record<string, unknown>,
+  configPath: string,
+): Promise<{ videos: VideoConfig[]; sources: Map<string, string> }> {
+  const scenarios = rootParsed.scenarios;
+  if (!Array.isArray(scenarios) || scenarios.length === 0) {
+    return { videos: [], sources: new Map() };
+  }
+
+  const configDir = dirname(resolve(configPath));
+  const relConfigPath = relative(process.cwd(), resolve(configPath));
+  const allVideos: VideoConfig[] = [];
+  const sources = new Map<string, string>();
+  const loadedPaths = new Set<string>();
+  const errors: string[] = [];
+  let scenarioIndex = 0;
+
+  for (const item of scenarios) {
+    if (typeof item === "string") {
+      const matches = await glob([item], {
+        cwd: configDir,
+        absolute: true,
+      });
+      for (const matchPath of matches) {
+        const abs = resolve(matchPath);
+        if (loadedPaths.has(abs)) continue;
+        loadedPaths.add(abs);
+
+        try {
+          const childConfig = await loadWebreelConfig(abs);
+
+          const childRaw = await loadRawConfig(abs);
+          if (Array.isArray(childRaw.scenarios) && childRaw.scenarios.length > 0) {
+            console.warn(
+              `Warning: "scenarios" in ${relative(process.cwd(), abs)} ignored (nested scenarios not supported)`,
+            );
+          }
+
+          const relChild = relative(process.cwd(), abs);
+          for (const video of childConfig.videos) {
+            sources.set(video.name, relChild);
+            allVideos.push(video);
+          }
+        } catch (err) {
+          errors.push(
+            `${relative(process.cwd(), abs)}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+      continue;
+    }
+
+    if (typeof item === "object" && item !== null) {
+      scenarioIndex++;
+      const scenario = item as Record<string, unknown>;
+      const sourceLabel = `${relConfigPath} [scenario #${scenarioIndex}]`;
+
+      let scenarioParsed: Record<string, unknown>;
+
+      if (scenario.extends === true) {
+        scenarioParsed = { ...scenario };
+        delete scenarioParsed.extends;
+
+        for (const key of MERGEABLE_TOP_LEVEL_KEYS) {
+          if (scenarioParsed[key] === undefined && rootParsed[key] !== undefined) {
+            scenarioParsed[key] = rootParsed[key];
+          }
+        }
+        if (scenarioParsed.theme === undefined && rootParsed.theme !== undefined) {
+          scenarioParsed.theme = rootParsed.theme;
+        } else if (rootParsed.theme !== undefined) {
+          scenarioParsed.theme = mergeTheme(
+            rootParsed.theme as Record<string, unknown> | undefined,
+            scenarioParsed.theme as Record<string, unknown> | undefined,
+          );
+        }
+        if (scenarioParsed.sfx === undefined && rootParsed.sfx !== undefined) {
+          scenarioParsed.sfx = rootParsed.sfx;
+        } else if (rootParsed.sfx !== undefined) {
+          scenarioParsed.sfx = mergeSfx(
+            rootParsed.sfx as Record<string, unknown> | undefined,
+            scenarioParsed.sfx as Record<string, unknown> | undefined,
+          );
+        }
+      } else if (typeof scenario.extends === "string") {
+        scenarioParsed = await resolveExtends(
+          scenario,
+          configPath,
+          new Set([resolve(configPath)]),
+          0,
+        );
+      } else {
+        scenarioParsed = scenario;
+      }
+
+      if (
+        scenarioParsed.videos != null &&
+        typeof scenarioParsed.videos === "object" &&
+        !Array.isArray(scenarioParsed.videos)
+      ) {
+        const scenarioDir = configDir;
+        const outDir = resolve(
+          scenarioDir,
+          (scenarioParsed.outDir as string) ?? "videos",
+        );
+        const defaults = {
+          baseUrl: scenarioParsed.baseUrl as string | undefined,
+          viewport: resolveViewportValue(scenarioParsed.viewport),
+          theme: scenarioParsed.theme as WebreelConfig["theme"],
+          sfx: scenarioParsed.sfx as WebreelConfig["sfx"],
+          include: scenarioParsed.include as string[] | undefined,
+          defaultDelay: scenarioParsed.defaultDelay as number | undefined,
+          clickDwell: scenarioParsed.clickDwell as number | undefined,
+        };
+
+        const videosObj = scenarioParsed.videos as Record<
+          string,
+          Record<string, unknown>
+        >;
+        for (const [name, body] of Object.entries(videosObj)) {
+          const videoBody = { ...body };
+          if (typeof videoBody.viewport === "string") {
+            videoBody.viewport =
+              resolveViewportPreset(videoBody.viewport as string) ?? videoBody.viewport;
+          }
+          const video = {
+            ...videoBody,
+            name,
+            configDir: scenarioDir,
+          } as unknown as VideoConfig;
+          const resolvedVideo = resolveVideoDefaults(
+            video,
+            defaults,
+            outDir,
+            scenarioDir,
+          );
+          const finalVideo = await resolveVideo(resolvedVideo, configPath);
+          sources.set(name, sourceLabel);
+          allVideos.push(finalVideo);
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Failed to load scenario configs:\n  ${errors.join("\n  ")}`);
+  }
+
+  return { videos: allVideos, sources };
+}
+
+export async function loadFullConfig(paths: string[]): Promise<FullConfig> {
+  const allVideos: VideoConfig[] = [];
+  const videoSources = new Map<string, string>();
+
+  for (const configPath of paths) {
+    const config = await loadWebreelConfig(configPath);
+    const relPath = relative(process.cwd(), resolve(configPath));
+
+    for (const video of config.videos) {
+      if (videoSources.has(video.name)) {
+        throw new Error(
+          `Duplicate video name "${video.name}" in ${videoSources.get(video.name)} and ${relPath}`,
+        );
+      }
+      videoSources.set(video.name, relPath);
+      allVideos.push(video);
+    }
+
+    const raw = await loadRawConfig(configPath);
+    if (Array.isArray(raw.scenarios) && raw.scenarios.length > 0) {
+      const { videos: scenarioVideos, sources } = await resolveScenarios(raw, configPath);
+      for (const video of scenarioVideos) {
+        const source = sources.get(video.name) ?? relPath;
+        if (videoSources.has(video.name)) {
+          throw new Error(
+            `Duplicate video name "${video.name}" in ${videoSources.get(video.name)} and ${source}`,
+          );
+        }
+        videoSources.set(video.name, source);
+        allVideos.push(video);
+      }
+    }
+  }
+
+  return { videos: allVideos, videoSources };
 }

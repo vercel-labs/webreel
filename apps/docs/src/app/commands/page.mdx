@@ -1,7 +1,7 @@
 export const metadata = {
   title: "Commands",
   description:
-    "CLI commands available in webreel: init, record, preview, composite, install, and validate.",
+    "CLI commands available in webreel: init, record, preview, composite, list, install, and validate.",
 };
 
 # Commands
@@ -53,10 +53,14 @@ Record videos:
 webreel record
 webreel record hero login
 webreel record -c custom.config.json
+webreel record -c web.json -c mobile.json
+webreel record -p "dashboard-*"
 webreel record --watch
 ```
 
 When run without arguments, webreel finds the nearest config file (searching parent directories) and records all videos. Provide video names to record specific videos only.
+
+The `-c` flag can be repeated to load multiple config files, and supports globs (e.g. `-c "configs/*.json"`). The `-p` flag filters videos by name or glob pattern.
 
 <table>
   <thead>
@@ -70,7 +74,13 @@ When run without arguments, webreel finds the nearest config file (searching par
       <td>
         <code>-c</code>, <code>--config</code>
       </td>
-      <td>Path to config file (default: auto-discovered)</td>
+      <td>Config file path or glob (repeatable, default: auto-discovered)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>-p</code>, <code>--project</code>
+      </td>
+      <td>Filter videos by name or glob pattern (repeatable)</td>
     </tr>
     <tr>
       <td>
@@ -89,6 +99,12 @@ When run without arguments, webreel finds the nearest config file (searching par
         <code>--dry-run</code>
       </td>
       <td>Print the fully resolved config and step list without recording</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--frames</code>
+      </td>
+      <td>Save raw frames as JPEGs in .webreel/frames/</td>
     </tr>
   </tbody>
 </table>
@@ -117,7 +133,7 @@ When run without a video name, the first video in the config is previewed.
       <td>
         <code>-c</code>, <code>--config</code>
       </td>
-      <td>Path to config file (default: webreel.config.json)</td>
+      <td>Config file path or glob (repeatable)</td>
     </tr>
     <tr>
       <td>
@@ -136,6 +152,7 @@ Re-composite videos from stored raw recordings and timelines. This re-applies cu
 webreel composite
 webreel composite hero
 webreel composite -c custom.config.json
+webreel composite -p "mobile-*"
 ```
 
 Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timelines/` after the first recording.
@@ -152,7 +169,55 @@ Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timeline
       <td>
         <code>-c</code>, <code>--config</code>
       </td>
-      <td>Path to config file (default: webreel.config.json)</td>
+      <td>Config file path or glob (repeatable)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>-p</code>, <code>--project</code>
+      </td>
+      <td>Filter videos by name or glob pattern (repeatable)</td>
+    </tr>
+  </tbody>
+</table>
+
+## list
+
+List all videos across config file(s):
+
+```bash
+webreel list
+webreel list -c web.json -c mobile.json
+webreel list -p "dashboard-*"
+webreel list --json
+```
+
+Shows video names, URLs, source config files, step counts, and viewports. Use `--json` for machine-readable output.
+
+<table>
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>-c</code>, <code>--config</code>
+      </td>
+      <td>Config file path or glob (repeatable)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>-p</code>, <code>--project</code>
+      </td>
+      <td>Filter videos by name or glob pattern (repeatable)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>--json</code>
+      </td>
+      <td>Output as JSON</td>
     </tr>
   </tbody>
 </table>
@@ -185,12 +250,15 @@ webreel install --force
 
 ## validate
 
-Check a config file for errors without running it:
+Check config file(s) for errors without running them:
 
 ```bash
 webreel validate
 webreel validate -c custom.config.json
+webreel validate -c web.json -c mobile.json
 ```
+
+When multiple configs are specified, cross-config validation checks for duplicate video names.
 
 <table>
   <thead>
@@ -204,7 +272,7 @@ webreel validate -c custom.config.json
       <td>
         <code>-c</code>, <code>--config</code>
       </td>
-      <td>Path to config file (default: webreel.config.json)</td>
+      <td>Config file path or glob (repeatable)</td>
     </tr>
   </tbody>
 </table>
