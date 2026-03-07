@@ -187,7 +187,7 @@ async function findFreePort(): Promise<number> {
 export interface ChromeInstance {
   process: ChildProcess;
   port: number;
-  kill: () => void;
+  kill: () => Promise<void>;
 }
 
 const MAX_LAUNCH_ATTEMPTS = 3;
@@ -267,14 +267,39 @@ export async function launchChrome(
         });
       });
 
+      const cleanup = () => {
+        try {
+          proc.kill("SIGKILL");
+        } catch {
+          // Ignore cleanup errors during process exit.
+        }
+        try {
+          rmSync(userDataDir, { recursive: true, force: true });
+        } catch {
+          // Ignore cleanup errors during process exit.
+        }
+      };
+      process.on("exit", cleanup);
+
       return {
         process: proc,
         port,
-        kill: () => {
+        kill: async () => {
+          process.off("exit", cleanup);
           proc.kill("SIGTERM");
-          setTimeout(() => {
-            rmSync(userDataDir, { recursive: true, force: true });
-          }, 500);
+          const exited = await Promise.race([
+            new Promise<boolean>((resolve) => proc.on("exit", () => resolve(true))),
+            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
+          ]);
+          if (!exited) {
+            const exitPromise = new Promise<void>((resolve) => {
+              if (proc.exitCode !== null) return resolve();
+              proc.on("exit", () => resolve());
+            });
+            proc.kill("SIGKILL");
+            await exitPromise;
+          }
+          rmSync(userDataDir, { recursive: true, force: true });
         },
       };
     } catch (err) {

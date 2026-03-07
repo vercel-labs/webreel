@@ -174,6 +174,18 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
+        try {
+          await this.raceStop(
+            client.Runtime.evaluate({
+              expression:
+                "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+              awaitPromise: true,
+            }),
+          );
+        } catch {
+          // Page may be navigating -- skip sync, screenshot will retry next loop
+        }
+
         const screenshotResult = await this.raceStop(
           client.Page.captureScreenshot({
             format: "jpeg",

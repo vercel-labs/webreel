@@ -623,45 +623,54 @@ export async function typeText(
   client: CDPClient,
   text: string,
   delayMs = 120,
+  options?: { method?: "dispatchKeyEvent" | "insertText" },
 ): Promise<void> {
+  const useInsertText = options?.method === "insertText";
+
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    const charInfo = CHAR_CODES[char];
-    const isLetter = /^[a-zA-Z]$/.test(char);
 
-    let code: string;
-    let keyCode: number;
-
-    if (charInfo) {
-      code = charInfo.code;
-      keyCode = charInfo.keyCode;
-    } else if (isLetter) {
-      code = `Key${char.toUpperCase()}`;
-      keyCode = char.toUpperCase().charCodeAt(0);
+    if (useInsertText) {
+      await client.Input.insertText({ text: char });
     } else {
-      code = "";
-      keyCode = 0;
+      const charInfo = CHAR_CODES[char];
+      const isLetter = /^[a-zA-Z]$/.test(char);
+
+      let code: string;
+      let keyCode: number;
+
+      if (charInfo) {
+        code = charInfo.code;
+        keyCode = charInfo.keyCode;
+      } else if (isLetter) {
+        code = `Key${char.toUpperCase()}`;
+        keyCode = char.toUpperCase().charCodeAt(0);
+      } else {
+        code = "";
+        keyCode = 0;
+      }
+
+      await client.Input.dispatchKeyEvent({
+        type: "rawKeyDown",
+        key: char,
+        code,
+        windowsVirtualKeyCode: keyCode,
+      });
+      await client.Input.dispatchKeyEvent({
+        type: "char",
+        key: char,
+        text: char,
+      });
+      await client.Input.dispatchKeyEvent({
+        type: "keyUp",
+        key: char,
+        code,
+        windowsVirtualKeyCode: keyCode,
+      });
     }
 
-    await client.Input.dispatchKeyEvent({
-      type: "rawKeyDown",
-      key: char,
-      code,
-      windowsVirtualKeyCode: keyCode,
-    });
-    await client.Input.dispatchKeyEvent({
-      type: "char",
-      key: char,
-      text: char,
-    });
-    await client.Input.dispatchKeyEvent({
-      type: "keyUp",
-      key: char,
-      code,
-      windowsVirtualKeyCode: keyCode,
-    });
     ctx.markEvent("key");
-    if (ctx.isRecording) {
+    if (ctx.isRecording && delayMs > 0) {
       const waitStart = Date.now();
       await getTimeline(ctx).waitForNextTick();
       const tickElapsed = Date.now() - waitStart;

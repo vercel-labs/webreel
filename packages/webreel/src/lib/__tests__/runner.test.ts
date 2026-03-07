@@ -1,7 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { formatStep, resolveKeyTarget, resolveUrl, randomPointInBox } from "../runner.js";
+import {
+  formatStep,
+  resolveKeyTarget,
+  resolveUrl,
+  randomPointInBox,
+  resolveTarget,
+} from "../runner.js";
 import type { Step } from "../types.js";
 
 describe("formatStep", () => {
@@ -170,5 +176,62 @@ describe("randomPointInBox", () => {
     } finally {
       vi.restoreAllMocks();
     }
+  });
+});
+
+vi.mock("@webreel/core", async () => {
+  const actual = await vi.importActual<typeof import("@webreel/core")>("@webreel/core");
+  return {
+    ...actual,
+    findElementByText: vi.fn(),
+    findElementBySelector: vi.fn(),
+  };
+});
+
+import { findElementByText, findElementBySelector } from "@webreel/core";
+
+const mockedFindByText = vi.mocked(findElementByText);
+const mockedFindBySelector = vi.mocked(findElementBySelector);
+
+describe("resolveTarget", () => {
+  const mockClient = {} as never;
+  const mockBox = { x: 10, y: 20, width: 100, height: 50 };
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves by selector", async () => {
+    mockedFindBySelector.mockResolvedValue(mockBox);
+    const result = await resolveTarget(mockClient, { selector: "#foo" });
+    expect(result).toEqual(mockBox);
+    expect(mockedFindBySelector).toHaveBeenCalledWith(mockClient, "#foo", undefined);
+  });
+
+  it("resolves by text", async () => {
+    mockedFindByText.mockResolvedValue(mockBox);
+    const result = await resolveTarget(mockClient, { text: "Hello" });
+    expect(result).toEqual(mockBox);
+    expect(mockedFindByText).toHaveBeenCalledWith(mockClient, "Hello", undefined);
+  });
+
+  it("passes within to findElementBySelector", async () => {
+    mockedFindBySelector.mockResolvedValue(mockBox);
+    await resolveTarget(mockClient, { selector: "#input", within: ".modal" });
+    expect(mockedFindBySelector).toHaveBeenCalledWith(mockClient, "#input", ".modal");
+    expect(mockedFindByText).not.toHaveBeenCalled();
+  });
+
+  it("throws when neither text nor selector provided", async () => {
+    await expect(resolveTarget(mockClient, {})).rejects.toThrow(
+      'resolveTarget requires "text" or "selector"',
+    );
+  });
+
+  it("throws when element not found", async () => {
+    mockedFindBySelector.mockResolvedValue(null);
+    await expect(resolveTarget(mockClient, { selector: "#missing" })).rejects.toThrow(
+      "Element not found",
+    );
   });
 });

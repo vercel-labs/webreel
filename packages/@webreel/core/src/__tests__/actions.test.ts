@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   modKey,
   RecordingContext,
@@ -8,10 +8,12 @@ import {
   modLabel,
   modKeyInfo,
   resolveCommands,
+  typeText,
   KEY_CODES,
   CHAR_CODES,
   SHORTCUT_COMMANDS,
 } from "../actions.js";
+import type { CDPClient } from "../types.js";
 
 describe("modKey", () => {
   it("returns cmd or ctrl based on platform", () => {
@@ -300,5 +302,48 @@ describe("RecordingContext", () => {
     ctx.setRecorder({ addEvent: (t: string) => events.push(`rec:${t}`) } as never);
     ctx.markEvent("key");
     expect(events).toEqual(["rec:key"]);
+  });
+});
+
+describe("typeText", () => {
+  function createMockClient() {
+    return {
+      Input: {
+        insertText: vi.fn().mockResolvedValue(undefined),
+        dispatchKeyEvent: vi.fn().mockResolvedValue(undefined),
+      },
+    } as unknown as CDPClient & {
+      Input: {
+        insertText: ReturnType<typeof vi.fn>;
+        dispatchKeyEvent: ReturnType<typeof vi.fn>;
+      };
+    };
+  }
+
+  it("uses insertText when method is insertText", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    await typeText(ctx, client, "ab", 0, { method: "insertText" });
+    expect(client.Input.insertText).toHaveBeenCalledTimes(2);
+    expect(client.Input.insertText).toHaveBeenNthCalledWith(1, { text: "a" });
+    expect(client.Input.insertText).toHaveBeenNthCalledWith(2, { text: "b" });
+    expect(client.Input.dispatchKeyEvent).not.toHaveBeenCalled();
+  });
+
+  it("uses dispatchKeyEvent when method is dispatchKeyEvent", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    await typeText(ctx, client, "ab", 0, { method: "dispatchKeyEvent" });
+    // 3 events per char: rawKeyDown, char, keyUp
+    expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(6);
+    expect(client.Input.insertText).not.toHaveBeenCalled();
+  });
+
+  it("defaults to dispatchKeyEvent when no method specified", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    await typeText(ctx, client, "a", 0);
+    expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(3);
+    expect(client.Input.insertText).not.toHaveBeenCalled();
   });
 });

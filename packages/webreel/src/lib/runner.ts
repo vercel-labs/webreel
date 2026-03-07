@@ -70,7 +70,7 @@ export function resolveKeyTarget(target: string | ElementTarget): string {
   return target.selector ?? "";
 }
 
-async function resolveTarget(
+export async function resolveTarget(
   client: CDPClient,
   opts: { text?: string; selector?: string; within?: string },
 ): Promise<BoundingBox> {
@@ -284,7 +284,10 @@ export async function runVideo(
 
           case "type": {
             if (step.selector) {
-              const box = await resolveTarget(client, step);
+              const box = await resolveTarget(client, {
+                selector: step.selector,
+                within: step.within,
+              });
               const { x: tx, y: ty } = randomPointInBox(box);
               await clickAt(ctx, client, tx, ty);
               await client.Runtime.evaluate({
@@ -292,7 +295,9 @@ export async function runVideo(
               });
               await pause(300 + Math.random() * 200);
             }
-            await typeText(ctx, client, step.text, step.charDelay);
+            await typeText(ctx, client, step.text, step.charDelay, {
+              method: step.selector ? "insertText" : "dispatchKeyEvent",
+            });
             break;
           }
 
@@ -461,7 +466,7 @@ export async function runVideo(
       }
     }
     try {
-      chrome.kill();
+      await chrome.kill();
     } catch (err) {
       console.warn("Failed to kill Chrome process:", err);
     }
