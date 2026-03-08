@@ -1408,6 +1408,53 @@ describe("inline scenario with file extends", () => {
   });
 });
 
+describe("inline scenario extends: true inherits from root extends chain", () => {
+  const dir = resolve(
+    tmpdir(),
+    `webreel-scenario-root-extends-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+
+  function cleanup() {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
+
+  it("inline scenario with extends: true sees values from root extends", async () => {
+    mkdirSync(dir, { recursive: true });
+    try {
+      writeFileSync(
+        resolve(dir, "base.json"),
+        JSON.stringify({
+          baseUrl: "https://from-base.com",
+          defaultDelay: 999,
+          videos: {},
+        }),
+      );
+      writeFileSync(
+        resolve(dir, "root.json"),
+        JSON.stringify({
+          extends: "./base.json",
+          scenarios: [
+            {
+              extends: true,
+              videos: { demo: { url: "/demo", steps: [] } },
+            },
+          ],
+        }),
+      );
+      const full = await loadFullConfig([resolve(dir, "root.json")]);
+      expect(full.videos).toHaveLength(1);
+      expect(full.videos[0].baseUrl).toBe("https://from-base.com");
+      expect(full.videos[0].defaultDelay).toBe(999);
+    } finally {
+      cleanup();
+    }
+  });
+});
+
 describe("nested scenarios warning", () => {
   const dir = resolve(tmpdir(), `webreel-nested-scenarios-${Date.now()}`);
 

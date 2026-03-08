@@ -1735,8 +1735,17 @@ export async function loadFullConfig(paths: string[]): Promise<FullConfig> {
     }
 
     const raw = await loadRawConfig(configPath);
-    if (Array.isArray(raw.scenarios) && raw.scenarios.length > 0) {
-      const { videos: scenarioVideos, sources } = await resolveScenarios(raw, configPath);
+    const resolved = await resolveExtends(
+      raw,
+      configPath,
+      new Set([resolve(configPath)]),
+      0,
+    );
+    if (Array.isArray(resolved.scenarios) && resolved.scenarios.length > 0) {
+      const { videos: scenarioVideos, sources } = await resolveScenarios(
+        resolved,
+        configPath,
+      );
       for (const video of scenarioVideos) {
         const source = sources.get(video.name) ?? relPath;
         if (videoSources.has(video.name)) {
