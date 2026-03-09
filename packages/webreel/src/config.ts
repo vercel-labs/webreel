@@ -1,6 +1,7 @@
 export type {
   WebreelConfig,
   VideoConfig,
+  FullConfig,
   Step,
   StepPause,
   StepClick,
@@ -21,10 +22,21 @@ export type {
 
 export { VIEWPORT_PRESETS } from "./lib/types.js";
 
-export type InputVideoConfig = Omit<import("./lib/types.js").VideoConfig, "name">;
+export {
+  loadWebreelConfig,
+  loadFullConfig,
+  resolveConfigPath,
+  resolveConfigPaths,
+  filterVideosByName,
+} from "./lib/config.js";
 
-export interface InputWebreelConfig {
-  $schema?: string;
+export type InputVideoConfig = Omit<
+  import("./lib/types.js").VideoConfig,
+  "name" | "configDir"
+>;
+
+export interface InputScenarioConfig {
+  extends?: boolean | string;
   outDir?: string;
   baseUrl?: string;
   viewport?: string | { width: number; height: number };
@@ -36,6 +48,25 @@ export interface InputWebreelConfig {
   videos: Record<string, InputVideoConfig>;
 }
 
+export interface InputWebreelConfig {
+  $schema?: string;
+  extends?: string;
+  outDir?: string;
+  baseUrl?: string;
+  viewport?: string | { width: number; height: number };
+  theme?: import("./lib/types.js").ThemeConfig;
+  sfx?: import("./lib/types.js").SfxConfig;
+  include?: string[];
+  defaultDelay?: number;
+  clickDwell?: number;
+  scenarios?: (string | InputScenarioConfig)[];
+  videos?: Record<string, InputVideoConfig>;
+}
+
 export function defineConfig(config: InputWebreelConfig): InputWebreelConfig {
+  return config;
+}
+
+export function defineScenario(config: InputScenarioConfig): InputScenarioConfig {
   return config;
 }
