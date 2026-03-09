@@ -322,10 +322,15 @@ async function resolveExtends(
   };
 }
 
+interface BuildResult {
+  config: WebreelConfig;
+  resolved: Record<string, unknown>;
+}
+
 async function buildConfigFromParsed(
   parsed: Record<string, unknown>,
   filePath: string,
-): Promise<WebreelConfig> {
+): Promise<BuildResult> {
   const resolved = await resolveExtends(
     parsed,
     filePath,
@@ -370,7 +375,7 @@ async function buildConfigFromParsed(
     videoList.push(await resolveVideo(resolvedVideo, filePath));
   }
 
-  return {
+  const config: WebreelConfig = {
     $schema: resolved.$schema as string | undefined,
     outDir: resolved.outDir as string | undefined,
     baseUrl: resolved.baseUrl as string | undefined,
@@ -382,9 +387,11 @@ async function buildConfigFromParsed(
     clickDwell: resolved.clickDwell as number | undefined,
     videos: videoList,
   };
+
+  return { config, resolved };
 }
 
-export async function loadWebreelConfig(filePath: string): Promise<WebreelConfig> {
+async function loadWebreelConfigFull(filePath: string): Promise<BuildResult> {
   const ext = extname(filePath);
 
   if (JSON_EXTENSIONS.has(ext)) {
@@ -424,6 +431,11 @@ export async function loadWebreelConfig(filePath: string): Promise<WebreelConfig
   }
 
   return buildConfigFromParsed(rawConfig, filePath);
+}
+
+export async function loadWebreelConfig(filePath: string): Promise<WebreelConfig> {
+  const { config } = await loadWebreelConfigFull(filePath);
+  return config;
 }
 
 async function resolveVideo(video: VideoConfig, filePath: string): Promise<VideoConfig> {
@@ -1442,7 +1454,7 @@ export function filterVideosByName(
   return filtered;
 }
 
-export function filterVideosByProject(
+export function filterVideosByPattern(
   videos: VideoConfig[],
   patterns: string[],
 ): VideoConfig[] {
@@ -1470,12 +1482,12 @@ export function filterVideosByProject(
   if (exactMissing.length > 0) {
     const available = videos.map((v) => v.name).join(", ");
     throw new Error(
-      `Project(s) not found: ${exactMissing.join(", ")}. Available: ${available}`,
+      `Pattern(s) not found: ${exactMissing.join(", ")}. Available: ${available}`,
     );
   }
 
   if (result.size === 0) {
-    throw new Error(`No videos matched --project patterns: ${patterns.join(", ")}`);
+    throw new Error(`No videos matched --filter patterns: ${patterns.join(", ")}`);
   }
 
   return videos.filter((v) => result.has(v.name));
@@ -1484,16 +1496,16 @@ export function filterVideosByProject(
 export function filterVideos(
   videos: VideoConfig[],
   names: string[],
-  projects: string[],
+  patterns: string[],
 ): VideoConfig[] {
-  if (names.length === 0 && projects.length === 0) return videos;
-  if (names.length > 0 && projects.length === 0) return filterVideosByName(videos, names);
-  if (names.length === 0 && projects.length > 0)
-    return filterVideosByProject(videos, projects);
+  if (names.length === 0 && patterns.length === 0) return videos;
+  if (names.length > 0 && patterns.length === 0) return filterVideosByName(videos, names);
+  if (names.length === 0 && patterns.length > 0)
+    return filterVideosByPattern(videos, patterns);
 
   const byName = new Set(filterVideosByName(videos, names).map((v) => v.name));
-  const byProject = new Set(filterVideosByProject(videos, projects).map((v) => v.name));
-  const union = new Set([...byName, ...byProject]);
+  const byPattern = new Set(filterVideosByPattern(videos, patterns).map((v) => v.name));
+  const union = new Set([...byName, ...byPattern]);
 
   if (union.size === 0) {
     throw new Error("No videos matched the given filters.");
@@ -1566,10 +1578,10 @@ export async function resolveConfigPaths(configOpt?: string[]): Promise<string[]
 }
 
 async function resolveScenarios(
-  rootParsed: Record<string, unknown>,
+  rootResolved: Record<string, unknown>,
   configPath: string,
 ): Promise<{ videos: VideoConfig[]; sources: Map<string, string> }> {
-  const scenarios = rootParsed.scenarios;
+  const scenarios = rootResolved.scenarios;
   if (!Array.isArray(scenarios) || scenarios.length === 0) {
     return { videos: [], sources: new Map() };
   }
@@ -1594,10 +1606,13 @@ async function resolveScenarios(
         loadedPaths.add(abs);
 
         try {
-          const childConfig = await loadWebreelConfig(abs);
+          const { config: childConfig, resolved: childResolved } =
+            await loadWebreelConfigFull(abs);
 
-          const childRaw = await loadRawConfig(abs);
-          if (Array.isArray(childRaw.scenarios) && childRaw.scenarios.length > 0) {
+          if (
+            Array.isArray(childResolved.scenarios) &&
+            childResolved.scenarios.length > 0
+          ) {
             console.warn(
               `Warning: "scenarios" in ${relative(process.cwd(), abs)} ignored (nested scenarios not supported)`,
             );
@@ -1629,23 +1644,23 @@ async function resolveScenarios(
         delete scenarioParsed.extends;
 
         for (const key of MERGEABLE_TOP_LEVEL_KEYS) {
-          if (scenarioParsed[key] === undefined && rootParsed[key] !== undefined) {
-            scenarioParsed[key] = rootParsed[key];
+          if (scenarioParsed[key] === undefined && rootResolved[key] !== undefined) {
+            scenarioParsed[key] = rootResolved[key];
           }
         }
-        if (scenarioParsed.theme === undefined && rootParsed.theme !== undefined) {
-          scenarioParsed.theme = rootParsed.theme;
-        } else if (rootParsed.theme !== undefined) {
+        if (scenarioParsed.theme === undefined && rootResolved.theme !== undefined) {
+          scenarioParsed.theme = rootResolved.theme;
+        } else if (rootResolved.theme !== undefined) {
           scenarioParsed.theme = mergeTheme(
-            rootParsed.theme as Record<string, unknown> | undefined,
+            rootResolved.theme as Record<string, unknown> | undefined,
             scenarioParsed.theme as Record<string, unknown> | undefined,
           );
         }
-        if (scenarioParsed.sfx === undefined && rootParsed.sfx !== undefined) {
-          scenarioParsed.sfx = rootParsed.sfx;
-        } else if (rootParsed.sfx !== undefined) {
+        if (scenarioParsed.sfx === undefined && rootResolved.sfx !== undefined) {
+          scenarioParsed.sfx = rootResolved.sfx;
+        } else if (rootResolved.sfx !== undefined) {
           scenarioParsed.sfx = mergeSfx(
-            rootParsed.sfx as Record<string, unknown> | undefined,
+            rootResolved.sfx as Record<string, unknown> | undefined,
             scenarioParsed.sfx as Record<string, unknown> | undefined,
           );
         }
@@ -1721,7 +1736,7 @@ export async function loadFullConfig(paths: string[]): Promise<FullConfig> {
   const videoSources = new Map<string, string>();
 
   for (const configPath of paths) {
-    const config = await loadWebreelConfig(configPath);
+    const { config, resolved } = await loadWebreelConfigFull(configPath);
     const relPath = relative(process.cwd(), resolve(configPath));
 
     for (const video of config.videos) {
@@ -1734,13 +1749,6 @@ export async function loadFullConfig(paths: string[]): Promise<FullConfig> {
       allVideos.push(video);
     }
 
-    const raw = await loadRawConfig(configPath);
-    const resolved = await resolveExtends(
-      raw,
-      configPath,
-      new Set([resolve(configPath)]),
-      0,
-    );
     if (Array.isArray(resolved.scenarios) && resolved.scenarios.length > 0) {
       const { videos: scenarioVideos, sources } = await resolveScenarios(
         resolved,

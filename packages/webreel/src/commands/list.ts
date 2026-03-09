@@ -8,19 +8,14 @@ function accumulate(val: string, prev: string[]): string[] {
 export const listCommand = new Command("list")
   .description("List all videos across config(s)")
   .option("-c, --config <path>", "Config file (repeatable)", accumulate, [])
-  .option(
-    "-p, --project <name>",
-    "Filter by project name/glob (repeatable)",
-    accumulate,
-    [],
-  )
+  .option("-f, --filter <name>", "Filter by video name/glob (repeatable)", accumulate, [])
   .option("--json", "Output as JSON")
-  .action(async (opts: { config: string[]; project: string[]; json?: boolean }) => {
+  .action(async (opts: { config: string[]; filter: string[]; json?: boolean }) => {
     const configPaths = await resolveConfigPaths(
       opts.config.length > 0 ? opts.config : undefined,
     );
     const fullConfig = await loadFullConfig(configPaths);
-    const videos = filterVideos(fullConfig.videos, [], opts.project);
+    const videos = filterVideos(fullConfig.videos, [], opts.filter);
 
     if (opts.json) {
       const data = videos.map((v) => ({

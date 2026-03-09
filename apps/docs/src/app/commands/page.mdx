@@ -54,13 +54,13 @@ webreel record
 webreel record hero login
 webreel record -c custom.config.json
 webreel record -c web.json -c mobile.json
-webreel record -p "dashboard-*"
+webreel record -f "dashboard-*"
 webreel record --watch
 ```
 
 When run without arguments, webreel finds the nearest config file (searching parent directories) and records all videos. Provide video names to record specific videos only.
 
-The `-c` flag can be repeated to load multiple config files, and supports globs (e.g. `-c "configs/*.json"`). The `-p` flag filters videos by name or glob pattern.
+The `-c` flag can be repeated to load multiple config files, and supports globs (e.g. `-c "configs/*.json"`). The `-f` flag filters videos by name or glob pattern.
 
 <table>
   <thead>
@@ -78,7 +78,7 @@ The `-c` flag can be repeated to load multiple config files, and supports globs 
     </tr>
     <tr>
       <td>
-        <code>-p</code>, <code>--project</code>
+        <code>-f</code>, <code>--filter</code>
       </td>
       <td>Filter videos by name or glob pattern (repeatable)</td>
     </tr>
@@ -137,6 +137,12 @@ When run without a video name, the first video in the config is previewed.
     </tr>
     <tr>
       <td>
+        <code>-f</code>, <code>--filter</code>
+      </td>
+      <td>Filter videos by name or glob pattern (repeatable)</td>
+    </tr>
+    <tr>
+      <td>
         <code>--verbose</code>
       </td>
       <td>Log each step as it executes</td>
@@ -152,7 +158,7 @@ Re-composite videos from stored raw recordings and timelines. This re-applies cu
 webreel composite
 webreel composite hero
 webreel composite -c custom.config.json
-webreel composite -p "mobile-*"
+webreel composite -f "mobile-*"
 ```
 
 Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timelines/` after the first recording.
@@ -173,7 +179,7 @@ Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timeline
     </tr>
     <tr>
       <td>
-        <code>-p</code>, <code>--project</code>
+        <code>-f</code>, <code>--filter</code>
       </td>
       <td>Filter videos by name or glob pattern (repeatable)</td>
     </tr>
@@ -187,7 +193,7 @@ List all videos across config file(s):
 ```bash
 webreel list
 webreel list -c web.json -c mobile.json
-webreel list -p "dashboard-*"
+webreel list -f "dashboard-*"
 webreel list --json
 ```
 
@@ -209,7 +215,7 @@ Shows video names, URLs, source config files, step counts, and viewports. Use `-
     </tr>
     <tr>
       <td>
-        <code>-p</code>, <code>--project</code>
+        <code>-f</code>, <code>--filter</code>
       </td>
       <td>Filter videos by name or glob pattern (repeatable)</td>
     </tr>

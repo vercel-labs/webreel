@@ -10,7 +10,7 @@ import {
   buildLineMap,
   getConfigDir,
   filterVideosByName,
-  filterVideosByProject,
+  filterVideosByPattern,
   filterVideos,
   type ValidationError,
 } from "../config.js";
@@ -886,6 +886,24 @@ describe("extends resolution", () => {
     }
   });
 
+  it("rejects broken extends path during full resolution", async () => {
+    mkdirSync(dir, { recursive: true });
+    try {
+      writeFileSync(
+        resolve(dir, "broken.json"),
+        JSON.stringify({
+          extends: "./nonexistent-base.json",
+          videos: { hero: { url: "/", steps: [] } },
+        }),
+      );
+      await expect(loadWebreelConfig(resolve(dir, "broken.json"))).rejects.toThrow(
+        "not found",
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
   it("rejects extends: true in file-based config", async () => {
     mkdirSync(dir, { recursive: true });
     try {
@@ -1205,7 +1223,7 @@ describe("scenarios and loadFullConfig", () => {
   });
 });
 
-describe("filterVideosByProject", () => {
+describe("filterVideosByPattern", () => {
   const videos: VideoConfig[] = [
     { name: "hero", url: "/", steps: [], configDir: "/tmp" },
     { name: "login", url: "/login", steps: [], configDir: "/tmp" },
@@ -1215,33 +1233,33 @@ describe("filterVideosByProject", () => {
   ] as VideoConfig[];
 
   it("returns all with empty patterns", () => {
-    expect(filterVideosByProject(videos, [])).toEqual(videos);
+    expect(filterVideosByPattern(videos, [])).toEqual(videos);
   });
 
   it("filters by exact name", () => {
-    const result = filterVideosByProject(videos, ["hero"]);
+    const result = filterVideosByPattern(videos, ["hero"]);
     expect(result.map((v) => v.name)).toEqual(["hero"]);
   });
 
   it("filters by glob pattern", () => {
-    const result = filterVideosByProject(videos, ["dashboard-*"]);
+    const result = filterVideosByPattern(videos, ["dashboard-*"]);
     expect(result.map((v) => v.name)).toEqual(["dashboard-light", "dashboard-dark"]);
   });
 
   it("throws on missing exact name", () => {
-    expect(() => filterVideosByProject(videos, ["nonexistent"])).toThrow(
-      "Project(s) not found",
+    expect(() => filterVideosByPattern(videos, ["nonexistent"])).toThrow(
+      "Pattern(s) not found",
     );
   });
 
   it("does not throw on empty glob match", () => {
-    expect(() => filterVideosByProject(videos, ["nothing*"])).toThrow(
+    expect(() => filterVideosByPattern(videos, ["nothing*"])).toThrow(
       "No videos matched",
     );
   });
 
   it("combines exact and glob", () => {
-    const result = filterVideosByProject(videos, ["hero", "dashboard-*"]);
+    const result = filterVideosByPattern(videos, ["hero", "dashboard-*"]);
     expect(result.map((v) => v.name)).toEqual([
       "hero",
       "dashboard-light",
@@ -1261,7 +1279,7 @@ describe("filterVideos (union)", () => {
     expect(filterVideos(videos, [], [])).toEqual(videos);
   });
 
-  it("union of names and projects", () => {
+  it("union of names and patterns", () => {
     const result = filterVideos(videos, ["hero"], ["login"]);
     expect(result.map((v) => v.name)).toEqual(["hero", "login"]);
   });

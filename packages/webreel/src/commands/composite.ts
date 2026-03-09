@@ -13,18 +13,13 @@ export const compositeCommand = new Command("composite")
   .description("Re-composite videos from stored raw recordings and timelines")
   .argument("[videos...]", "Video names to composite (default: all)")
   .option("-c, --config <path>", "Config file (repeatable)", accumulate, [])
-  .option(
-    "-p, --project <name>",
-    "Filter by project name/glob (repeatable)",
-    accumulate,
-    [],
-  )
-  .action(async (videoNames: string[], opts: { config: string[]; project: string[] }) => {
+  .option("-f, --filter <name>", "Filter by video name/glob (repeatable)", accumulate, [])
+  .action(async (videoNames: string[], opts: { config: string[]; filter: string[] }) => {
     const configPaths = await resolveConfigPaths(
       opts.config.length > 0 ? opts.config : undefined,
     );
     const fullConfig = await loadFullConfig(configPaths);
-    const videos = filterVideos(fullConfig.videos, videoNames, opts.project);
+    const videos = filterVideos(fullConfig.videos, videoNames, opts.filter);
 
     for (const video of videos) {
       const videoDir = video.configDir;

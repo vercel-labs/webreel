@@ -57,9 +57,11 @@ export const validateCommand = new Command("validate")
           if (validationErrors.length > 0) {
             const lineMap = buildLineMap(raw);
             errors.push(formatValidationErrors(name, validationErrors, lineMap));
-          } else {
-            console.log(`${name}: valid`);
+            continue;
           }
+
+          await loadWebreelConfig(configPath);
+          console.log(`${name}: valid`);
         } else {
           await loadWebreelConfig(configPath);
           console.log(`${name}: valid`);

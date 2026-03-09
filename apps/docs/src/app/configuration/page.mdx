@@ -1016,20 +1016,20 @@ webreel list -c ./configs/*.json
 
 Glob patterns are supported. If any two configs define a video with the same name, an error is reported.
 
-## --project filtering
+## --filter
 
-The `--project` flag (or `-p`) filters videos by name using exact match or glob patterns. It can be repeated.
+The `--filter` flag (or `-f`) filters videos by name using exact match or glob patterns. It can be repeated.
 
 ```bash
-webreel record -p hero -p "dashboard-*"
-webreel list -p "mobile-*"
+webreel record -f hero -f "dashboard-*"
+webreel list -f "mobile-*"
 ```
 
 When combined with positional video names, the results are unioned:
 
 ```bash
-# Records "hero" (by name) and all videos matching "dashboard-*" (by project)
-webreel record hero -p "dashboard-*"
+# Records "hero" (by name) and all videos matching "dashboard-*" (by filter)
+webreel record hero -f "dashboard-*"
 ```
 
 ## Dry run

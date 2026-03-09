@@ -63,12 +63,7 @@ export const recordCommand = new Command("record")
   .description("Record videos")
   .argument("[videos...]", "Video names to record (default: all)")
   .option("-c, --config <path>", "Config file (repeatable)", accumulate, [])
-  .option(
-    "-p, --project <name>",
-    "Filter by project name/glob (repeatable)",
-    accumulate,
-    [],
-  )
+  .option("-f, --filter <name>", "Filter by video name/glob (repeatable)", accumulate, [])
   .option("--verbose", "Log each step as it executes")
   .option("--watch", "Re-record when config files change")
   .option("--dry-run", "Print the resolved config and step list without recording")
@@ -78,7 +73,7 @@ export const recordCommand = new Command("record")
       videoNames: string[],
       opts: {
         config: string[];
-        project: string[];
+        filter: string[];
         verbose?: boolean;
         watch?: boolean;
         dryRun?: boolean;
@@ -91,7 +86,7 @@ export const recordCommand = new Command("record")
       const verbose = opts.verbose ?? false;
 
       const fullConfig = await loadFullConfig(configPaths);
-      const videos = filterVideos(fullConfig.videos, videoNames, opts.project);
+      const videos = filterVideos(fullConfig.videos, videoNames, opts.filter);
 
       if (opts.dryRun) {
         printResolvedConfig(videos, fullConfig.videoSources);
@@ -141,7 +136,7 @@ export const recordCommand = new Command("record")
                 const updatedVideos = filterVideos(
                   latestConfig.videos,
                   videoNames,
-                  opts.project,
+                  opts.filter,
                 );
                 for (const video of updatedVideos) {
                   await runVideo(video, {
