@@ -579,3 +579,43 @@ Select a value from a `<select>` dropdown element.
 </table>
 
 Provide either `text` or `selector`, not both.
+
+## upload
+
+Set a file on an `<input type="file">` element via the browser's file input pipeline. The native `change` event fires, so framework `onChange` handlers (React and similar) run as if the user picked the file.
+
+```json
+{
+  "action": "upload",
+  "selector": "input[type='file']",
+  "filePath": "./fixtures/avatar.png"
+}
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>CSS selector for the file input element</td>
+    </tr>
+    <tr>
+      <td>
+        <code>filePath</code>
+      </td>
+      <td>string</td>
+      <td>Path to the file, resolved relative to the config file</td>
+    </tr>
+  </tbody>
+</table>
+
+The upload itself is invisible in the video (no cursor movement). Pair it with a `click` on the surrounding UI when the recording should look like a user action.

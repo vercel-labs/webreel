@@ -291,6 +291,7 @@ const VALID_ACTIONS = new Set([
   "navigateHref",
   "hover",
   "select",
+  "upload",
 ]);
 
 const KNOWN_TOP_LEVEL_KEYS = new Set([
@@ -401,6 +402,7 @@ const KNOWN_STEP_KEYS: Record<string, Set<string>> = {
     "delay",
     "description",
   ]),
+  upload: new Set(["action", "selector", "filePath", "label", "delay", "description"]),
 };
 
 export interface ValidationError {
@@ -652,6 +654,21 @@ function validateStep(step: unknown, index: number): ValidationError[] {
       }
       break;
     }
+
+    case "upload":
+      if (typeof s.selector !== "string" || s.selector.length === 0) {
+        errors.push({
+          path: `${prefix}.selector`,
+          message: "Must be a non-empty string",
+        });
+      }
+      if (typeof s.filePath !== "string" || s.filePath.length === 0) {
+        errors.push({
+          path: `${prefix}.filePath`,
+          message: "Must be a non-empty string",
+        });
+      }
+      break;
   }
 
   if (s.delay !== undefined && (!Number.isFinite(s.delay) || (s.delay as number) < 0)) {

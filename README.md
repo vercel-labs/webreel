@@ -180,6 +180,7 @@ webreel record --help
 | `navigateHref` | `selector`                                                   | Navigate to a link element's href    |
 | `hover`        | `text` or `selector`, optional `within`                      | Hover over an element (triggers CSS) |
 | `select`       | `selector`, `value`                                          | Select a value in a dropdown         |
+| `upload`       | `selector`, `filePath`                                       | Set a file on a file input           |
 
 All steps (except `pause`) accept an optional `delay` field (ms to wait after the step). Use `defaultDelay` at the top-level or per-video to set a default.
 

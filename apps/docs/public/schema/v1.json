@@ -347,6 +347,9 @@
         },
         {
           "$ref": "#/$defs/stepSelect"
+        },
+        {
+          "$ref": "#/$defs/stepUpload"
         }
       ]
     },
@@ -729,6 +732,36 @@
           "type": "string",
           "minLength": 1,
           "description": "CSS selector for an element with an href attribute."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepUpload": {
+      "type": "object",
+      "required": ["action", "selector", "filePath"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "upload"
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector for the file input element."
+        },
+        "filePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the file to upload, resolved relative to the config file."
         },
         "label": {
           "$ref": "#/$defs/label"

@@ -197,6 +197,7 @@ Each step has an `action` field. Most steps accept optional `label`, `delay` (ms
 | `navigateHref` | `selector`                                          | Navigate to a link element's href  |
 | `hover`        | `text` or `selector`, `within`                      | Hover over an element              |
 | `select`       | `selector`, `value`                                 | Select a dropdown value            |
+| `upload`       | `selector`, `filePath`                              | Set a file on a file input         |
 | `screenshot`   | `output`                                            | Capture a PNG screenshot           |
 
 For full field details on every step type, see [steps-reference.md](steps-reference.md).

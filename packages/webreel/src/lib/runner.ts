@@ -1,5 +1,12 @@
 import { resolve, dirname } from "node:path";
-import { readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -60,6 +67,8 @@ export function formatStep(i: number, step: Step): string {
       return `[step ${i}] hover ${step.text ? `text="${step.text}"` : `selector="${step.selector}"`}${desc}`;
     case "select":
       return `[step ${i}] select "${step.selector}" value="${step.value}"${desc}`;
+    case "upload":
+      return `[step ${i}] upload selector="${step.selector}" file="${step.filePath}"${desc}`;
     default: {
       const _exhaustive: never = step;
       return `[step ${i}] ${(_exhaustive as Step).action}`;
@@ -463,6 +472,24 @@ export async function runVideo(
             } else {
               throw new Error(`select step requires "selector" or "text"`);
             }
+            break;
+          }
+
+          case "upload": {
+            const absolutePath = resolve(configDir, step.filePath);
+            if (!existsSync(absolutePath)) {
+              throw new Error(`File not found: ${absolutePath}`);
+            }
+            await client.DOM.enable();
+            const { root } = await client.DOM.getDocument({ depth: 0 });
+            const { nodeId } = await client.DOM.querySelector({
+              nodeId: root.nodeId,
+              selector: step.selector,
+            });
+            if (!nodeId) {
+              throw new Error(`File input not found: selector="${step.selector}"`);
+            }
+            await client.DOM.setFileInputFiles({ nodeId, files: [absolutePath] });
             break;
           }
         }

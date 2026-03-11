@@ -235,3 +235,21 @@ Capture a PNG screenshot of the current viewport.
 ```json
 { "action": "screenshot", "output": "screenshots/final-state.png" }
 ```
+
+## upload
+
+Set a file on an `<input type="file">` element. Fires the native `change` event so framework `onChange` handlers run. Not visible in the video; pair with a `click` on the surrounding UI for realism.
+
+| Field      | Type       | Required | Description                                       |
+| ---------- | ---------- | -------- | ------------------------------------------------- |
+| `action`   | `"upload"` | yes      |                                                   |
+| `selector` | string     | yes      | CSS selector for the file input element           |
+| `filePath` | string     | yes      | Path to the file, resolved relative to the config |
+
+```json
+{
+  "action": "upload",
+  "selector": "input[type='file']",
+  "filePath": "./fixtures/avatar.png"
+}
+```
