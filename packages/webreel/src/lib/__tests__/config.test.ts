@@ -194,6 +194,43 @@ describe("validateStep", () => {
     expect(errors).toEqual([]);
   });
 
+  it("accepts valid upload step", () => {
+    const errors = validate({
+      action: "upload",
+      selector: "input[type='file']",
+      filePath: "audio.mp3",
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("validates upload requires non-empty selector", () => {
+    const errors = validate({ action: "upload", selector: "", filePath: "audio.mp3" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].selector" }),
+    );
+  });
+
+  it("validates upload rejects missing selector", () => {
+    const errors = validate({ action: "upload", filePath: "audio.mp3" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].selector" }),
+    );
+  });
+
+  it("validates upload requires non-empty filePath", () => {
+    const errors = validate({ action: "upload", selector: "#input", filePath: "" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].filePath" }),
+    );
+  });
+
+  it("validates upload rejects missing filePath", () => {
+    const errors = validate({ action: "upload", selector: "#input" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].filePath" }),
+    );
+  });
+
   it("accepts description field on any step", () => {
     const errors = validate({
       action: "pause",

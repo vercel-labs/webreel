@@ -84,6 +84,29 @@ describe("formatStep", () => {
     expect(formatStep(0, step)).toBe('[step 0] select "#country" value="US"');
   });
 
+  it("formats upload step", () => {
+    const step: Step = {
+      action: "upload",
+      selector: "input[type='file']",
+      filePath: "audio.mp3",
+    };
+    expect(formatStep(0, step)).toBe(
+      `[step 0] upload selector="input[type='file']" file="audio.mp3"`,
+    );
+  });
+
+  it("formats upload step with description", () => {
+    const step: Step = {
+      action: "upload",
+      selector: "#file-input",
+      filePath: "tests/fixtures/heydonna.mp3",
+      description: "upload audio",
+    };
+    expect(formatStep(0, step)).toBe(
+      '[step 0] upload selector="#file-input" file="tests/fixtures/heydonna.mp3": upload audio',
+    );
+  });
+
   it("includes description when present", () => {
     const step: Step = { action: "pause", ms: 100, description: "wait for animation" };
     expect(formatStep(0, step)).toBe("[step 0] pause 100ms: wait for animation");
