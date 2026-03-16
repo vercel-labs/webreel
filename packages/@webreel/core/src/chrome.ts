@@ -194,13 +194,30 @@ const MAX_LAUNCH_ATTEMPTS = 3;
 
 export interface LaunchChromeOptions {
   headless?: boolean;
+  /**
+   * Use standard Chrome with `--headless=new` instead of chrome-headless-shell.
+   *
+   * Enable this when recording apps that use client-side routing (SPA
+   * frameworks like Next.js, Inertia.js, React Router, etc.). The default
+   * chrome-headless-shell binary uses `--enable-begin-frame-control` which
+   * freezes the compositor on DOM-only navigations — clicks that trigger
+   * client-side route changes produce stale video frames.
+   *
+   * Standard Chrome with `--headless=new` has the full rendering pipeline
+   * and correctly composites frames after SPA navigations.
+   *
+   * @default false
+   */
+  spa?: boolean;
 }
 
 export async function launchChrome(
   options?: LaunchChromeOptions,
 ): Promise<ChromeInstance> {
   const headless = options?.headless ?? true;
-  const chromePath = headless ? await ensureHeadlessShell() : await ensureChrome();
+  const spa = options?.spa ?? false;
+  const chromePath =
+    headless && !spa ? await ensureHeadlessShell() : await ensureChrome();
 
   let lastError: Error | null = null;
 
@@ -209,18 +226,28 @@ export async function launchChrome(
     const userDataDir = mkdtempSync(join(tmpdir(), "webreel-chrome-"));
 
     const args = headless
-      ? [
-          `--remote-debugging-port=${port}`,
-          `--user-data-dir=${userDataDir}`,
-          "--no-sandbox",
-          "--hide-scrollbars",
-          "--enable-begin-frame-control",
-          "--run-all-compositor-stages-before-draw",
-          "--disable-threaded-animation",
-          "--disable-threaded-scrolling",
-          "--disable-checker-imaging",
-          "about:blank",
-        ]
+      ? spa
+        ? [
+            "--headless=new",
+            `--remote-debugging-port=${port}`,
+            `--user-data-dir=${userDataDir}`,
+            "--no-sandbox",
+            "--hide-scrollbars",
+            "--disable-gpu",
+            "about:blank",
+          ]
+        : [
+            `--remote-debugging-port=${port}`,
+            `--user-data-dir=${userDataDir}`,
+            "--no-sandbox",
+            "--hide-scrollbars",
+            "--enable-begin-frame-control",
+            "--run-all-compositor-stages-before-draw",
+            "--disable-threaded-animation",
+            "--disable-threaded-scrolling",
+            "--disable-checker-imaging",
+            "about:blank",
+          ]
       : [
           `--remote-debugging-port=${port}`,
           `--user-data-dir=${userDataDir}`,

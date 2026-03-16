@@ -92,7 +92,7 @@ function resolveVideoDefaults(
   defaults: Partial<
     Pick<
       WebreelConfig,
-      "baseUrl" | "viewport" | "theme" | "include" | "defaultDelay" | "clickDwell" | "sfx"
+      "baseUrl" | "viewport" | "theme" | "include" | "defaultDelay" | "clickDwell" | "sfx" | "spa"
     >
   >,
   outDir: string | undefined,
@@ -114,6 +114,8 @@ function resolveVideoDefaults(
     resolved.defaultDelay = defaults.defaultDelay;
   if (resolved.clickDwell === undefined && defaults.clickDwell !== undefined)
     resolved.clickDwell = defaults.clickDwell;
+  if (resolved.spa === undefined && defaults.spa !== undefined)
+    resolved.spa = defaults.spa;
   if (resolved.output && !isAbsolute(resolved.output) && outDir) {
     resolved.output = resolve(outDir, resolved.output);
   } else if (!resolved.output && outDir) {
@@ -177,6 +179,7 @@ async function buildConfigFromParsed(
     include: parsed.include as string[] | undefined,
     defaultDelay: parsed.defaultDelay as number | undefined,
     clickDwell: parsed.clickDwell as number | undefined,
+    spa: parsed.spa as boolean | undefined,
   };
 
   const videoList: VideoConfig[] = [];

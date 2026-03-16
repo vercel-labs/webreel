@@ -174,14 +174,18 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
-        const screenshotResult = await this.raceStop(
+        const screenshotResult = await Promise.race([
           client.Page.captureScreenshot({
             format: "jpeg",
             quality: 60,
             optimizeForSpeed: true,
           }),
-        );
-        if (!screenshotResult) break;
+          new Promise<null>((r) => setTimeout(() => r(null), 500)),
+        ]);
+        if (!screenshotResult) {
+          if (!this.running) break;
+          continue;
+        }
 
         const buffer = Buffer.from(screenshotResult.data, "base64");
         const now = Date.now();
@@ -208,6 +212,19 @@ export class Recorder {
         consecutiveErrors = 0;
       } catch (err) {
         if (!this.running) break;
+        const errMsg = err instanceof Error ? err.message : String(err);
+        // SPA frameworks (Inertia, Next.js, React Router) trigger client-side
+        // navigations that temporarily detach the CDP page target. Wait and
+        // retry instead of counting towards the abort threshold.
+        if (
+          errMsg.includes("Not attached") ||
+          errMsg.includes("Target closed") ||
+          errMsg.includes("Session closed") ||
+          errMsg.includes("Execution context")
+        ) {
+          await new Promise((r) => setTimeout(r, 100));
+          continue;
+        }
         consecutiveErrors++;
         if (consecutiveErrors >= 10) {
           console.error(

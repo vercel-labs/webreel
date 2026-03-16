@@ -188,6 +188,18 @@ export interface VideoConfig {
   sfx?: SfxConfig;
   defaultDelay?: number;
   clickDwell?: number;
+  /**
+   * Enable SPA-compatible recording mode.
+   *
+   * Uses standard Chrome with `--headless=new` instead of chrome-headless-shell.
+   * Required for apps that use client-side routing (Next.js, Inertia.js, React
+   * Router, SvelteKit, etc.) where clicks trigger DOM-based page transitions
+   * instead of full page loads.
+   *
+   * Without this, chrome-headless-shell's compositor freezes on SPA navigations,
+   * producing stale video frames after the first client-side route change.
+   */
+  spa?: boolean;
   steps: Step[];
 }
 
@@ -201,5 +213,7 @@ export interface WebreelConfig {
   include?: string[];
   defaultDelay?: number;
   clickDwell?: number;
+  /** Enable SPA-compatible recording mode globally. See `VideoConfig.spa`. */
+  spa?: boolean;
   videos: VideoConfig[];
 }
