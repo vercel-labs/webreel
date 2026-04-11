@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "chrome-remote-interface": "^0.33.2",
-    "sharp": "^0.34.5"
+    "@webreel/compositor": "workspace:*"
   },
   "devDependencies": {
     "@types/chrome-remote-interface": "^0.33.0",

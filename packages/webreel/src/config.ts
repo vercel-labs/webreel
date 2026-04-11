@@ -30,6 +30,7 @@ export interface InputWebreelConfig {
   viewport?: string | { width: number; height: number };
   theme?: import("./lib/types.js").ThemeConfig;
   sfx?: import("./lib/types.js").SfxConfig;
+  colorScheme?: "light" | "dark";
   include?: string[];
   defaultDelay?: number;
   clickDwell?: number;

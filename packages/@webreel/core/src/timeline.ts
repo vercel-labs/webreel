@@ -24,11 +24,40 @@ interface FrameData {
   hud: HudState | null;
 }
 
+export interface TimelineWindowConfig {
+  titlebar?: {
+    visible?: boolean;
+    title?: string;
+    stoplight?: boolean;
+    height?: number;
+    background?: string;
+  };
+  borderRadius?: number;
+  shadow?:
+    | boolean
+    | {
+        blur?: number;
+        color?: string;
+        offsetY?: number;
+      };
+  position?: "center" | { x: number; y: number };
+}
+
+export interface TimelineBackgroundConfig {
+  type: "solid" | "gradient" | "image";
+  color?: string;
+  gradient?: { from: string; to: string; angle?: number };
+  image?: string;
+}
+
 export interface TimelineData {
   fps: number;
   width: number;
   height: number;
   zoom: number;
+  screen?: { width: number; height: number };
+  window?: TimelineWindowConfig;
+  background?: TimelineBackgroundConfig;
   theme: {
     cursorSvg: string;
     cursorSize: number;
@@ -49,6 +78,8 @@ export interface TimelineData {
 export class InteractionTimeline {
   private cursorPath: Point[] | null = null;
   private pathIndex = 0;
+  private scalePath: number[] | null = null;
+  private scalePathIndex = 0;
   private currentCursor: CursorState = {
     x: -OFFSCREEN_MARGIN,
     y: -OFFSCREEN_MARGIN,
@@ -68,6 +99,9 @@ export class InteractionTimeline {
   private cursorSize: number;
   private cursorHotspot: "top-left" | "center";
   private hudConfig: TimelineData["theme"]["hud"];
+  private screen?: { width: number; height: number };
+  private windowConfig?: TimelineWindowConfig;
+  private backgroundConfig?: TimelineBackgroundConfig;
 
   constructor(
     width = DEFAULT_VIEWPORT_SIZE,
@@ -80,6 +114,9 @@ export class InteractionTimeline {
       cursorSize?: number;
       cursorHotspot?: "top-left" | "center";
       hud?: Partial<TimelineData["theme"]["hud"]>;
+      screen?: { width: number; height: number };
+      window?: TimelineWindowConfig;
+      background?: TimelineBackgroundConfig;
       loadedFrames?: FrameData[];
       loadedEvents?: SoundEvent[];
     },
@@ -106,6 +143,9 @@ export class InteractionTimeline {
       borderRadius: options?.hud?.borderRadius ?? DEFAULT_HUD_THEME.borderRadius,
       position: options?.hud?.position ?? DEFAULT_HUD_THEME.position,
     };
+    this.screen = options?.screen;
+    this.windowConfig = options?.window;
+    this.backgroundConfig = options?.background;
     if (options?.loadedFrames) {
       this.frames = options.loadedFrames;
       this.frameCount = options.loadedFrames.length;
@@ -122,6 +162,18 @@ export class InteractionTimeline {
 
   setCursorScale(scale: number): void {
     this.currentCursor.scale = scale;
+  }
+
+  setCursorScaleAnimated(targetScale: number, frames: number): void {
+    const startScale = this.currentCursor.scale;
+    const steps: number[] = [];
+    for (let i = 1; i <= frames; i++) {
+      const t = i / frames;
+      const eased = 1 - (1 - t) * (1 - t);
+      steps.push(startScale + (targetScale - startScale) * eased);
+    }
+    this.scalePath = steps;
+    this.scalePathIndex = 0;
   }
 
   showHud(labels: string[]): void {
@@ -153,6 +205,13 @@ export class InteractionTimeline {
       }
     }
 
+    if (this.scalePath && this.scalePathIndex < this.scalePath.length) {
+      this.currentCursor.scale = this.scalePath[this.scalePathIndex++];
+      if (this.scalePathIndex >= this.scalePath.length) {
+        this.scalePath = null;
+      }
+    }
+
     this.pushCurrentState();
 
     const resolvers = this.tickResolvers;
@@ -172,6 +231,19 @@ export class InteractionTimeline {
     this.frameCount++;
   }
 
+  getLastFrame(): { cursor: CursorState; hud: HudState | null } | null {
+    if (this.frames.length === 0) return null;
+    return this.frames[this.frames.length - 1];
+  }
+
+  get bufferedFrameCount(): number {
+    return this.frames.length;
+  }
+
+  flushFrames(upTo: number): FrameData[] {
+    return this.frames.splice(0, upTo);
+  }
+
   getEvents(): SoundEvent[] {
     return this.events;
   }
@@ -181,7 +253,7 @@ export class InteractionTimeline {
   }
 
   toJSON(): TimelineData {
-    return {
+    const data: TimelineData = {
       fps: this.fps,
       width: this.width,
       height: this.height,
@@ -195,6 +267,10 @@ export class InteractionTimeline {
       frames: this.frames,
       events: this.events,
     };
+    if (this.screen) data.screen = this.screen;
+    if (this.windowConfig) data.window = this.windowConfig;
+    if (this.backgroundConfig) data.background = this.backgroundConfig;
+    return data;
   }
 
   save(path: string): void {
@@ -209,6 +285,9 @@ export class InteractionTimeline {
       cursorSize: json.theme.cursorSize,
       cursorHotspot: json.theme.cursorHotspot,
       hud: json.theme.hud,
+      screen: json.screen,
+      window: json.window,
+      background: json.background,
       loadedFrames: json.frames,
       loadedEvents: json.events,
     });

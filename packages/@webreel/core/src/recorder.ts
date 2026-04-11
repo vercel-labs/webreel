@@ -9,6 +9,17 @@ import { ensureFfmpeg } from "./ffmpeg.js";
 import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
 import type { InteractionTimeline, TimelineData } from "./timeline.js";
 
+export interface FrameSink {
+  writeFrame(
+    jpegData: Buffer,
+    cursor: { x: number; y: number; scale: number },
+    hud: { labels: string[] } | null,
+  ): boolean;
+  waitForDrain(): Promise<void>;
+  finish(): Promise<void>;
+  kill(): void;
+}
+
 export class Recorder {
   private outputPath = "";
   private frameCount = 0;
@@ -31,6 +42,8 @@ export class Recorder {
   private framesDir: string | null = null;
   private stopResolve: (() => void) | null = null;
   private stoppedPromise: Promise<void> | null = null;
+  private streamSink: FrameSink | null = null;
+  private _composedInline = false;
 
   constructor(
     outputWidth = DEFAULT_VIEWPORT_SIZE,
@@ -61,6 +74,15 @@ export class Recorder {
     return this.timeline?.toJSON() ?? null;
   }
 
+  setStreamSink(sink: FrameSink, tempVideoPath?: string): void {
+    this.streamSink = sink;
+    if (tempVideoPath) this.tempVideo = tempVideoPath;
+  }
+
+  isComposedInline(): boolean {
+    return this._composedInline;
+  }
+
   addEvent(type: "click" | "key") {
     if (this.running) {
       const timeMs = (this.frameCount / this.fps) * 1000;
@@ -75,60 +97,62 @@ export class Recorder {
     this.droppedFrames = 0;
     this.running = true;
     this.events = [];
+    this._composedInline = false;
     this.ctx = ctx ?? null;
     if (this.ctx) this.ctx.setRecorder(this);
 
-    const workDir = resolve(homedir(), ".webreel");
-    mkdirSync(workDir, { recursive: true });
-    this.tempVideo = resolve(workDir, `_rec_${Date.now()}.mp4`);
+    if (!this.streamSink) {
+      const workDir = resolve(homedir(), ".webreel");
+      mkdirSync(workDir, { recursive: true });
+      this.tempVideo = resolve(workDir, `_rec_${Date.now()}.mp4`);
+      this.ffmpegProcess = spawn(
+        this.ffmpegPath,
+        [
+          "-y",
+          "-f",
+          "image2pipe",
+          "-framerate",
+          String(this.fps),
+          "-c:v",
+          "mjpeg",
+          "-i",
+          "pipe:0",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          String(this.crf),
+          "-pix_fmt",
+          "yuv420p",
+          "-color_primaries",
+          "bt709",
+          "-color_trc",
+          "bt709",
+          "-colorspace",
+          "bt709",
+          "-movflags",
+          "+faststart",
+          "-r",
+          String(this.fps),
+          this.tempVideo,
+        ],
+        { stdio: ["pipe", "pipe", "pipe"] },
+      );
 
-    this.ffmpegProcess = spawn(
-      this.ffmpegPath,
-      [
-        "-y",
-        "-f",
-        "image2pipe",
-        "-framerate",
-        String(this.fps),
-        "-c:v",
-        "mjpeg",
-        "-i",
-        "pipe:0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        String(this.crf),
-        "-pix_fmt",
-        "yuv420p",
-        "-color_primaries",
-        "bt709",
-        "-color_trc",
-        "bt709",
-        "-colorspace",
-        "bt709",
-        "-movflags",
-        "+faststart",
-        "-r",
-        String(this.fps),
-        this.tempVideo,
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
+      const resolveDrain = () => {
+        const resolve = this.drainResolve;
+        if (resolve) {
+          this.drainResolve = null;
+          resolve();
+        }
+      };
 
-    const resolveDrain = () => {
-      const resolve = this.drainResolve;
-      if (resolve) {
-        this.drainResolve = null;
-        resolve();
-      }
-    };
-
-    const stdin = this.ffmpegProcess.stdin;
-    if (!stdin) throw new Error("ffmpeg process has no stdin pipe");
-    stdin.on("drain", resolveDrain);
-    this.ffmpegProcess.on("close", resolveDrain);
+      const stdin = this.ffmpegProcess.stdin;
+      if (!stdin) throw new Error("ffmpeg process has no stdin pipe");
+      stdin.on("drain", resolveDrain);
+      this.ffmpegProcess.on("close", resolveDrain);
+    }
 
     this.stoppedPromise = new Promise<void>((resolve) => {
       this.stopResolve = resolve;
@@ -147,10 +171,30 @@ export class Recorder {
     const ok = stdin.write(buffer);
     if (!ok) {
       await new Promise<void>((res) => {
+        if (this.drainResolve) {
+          const prev = this.drainResolve;
+          this.drainResolve = null;
+          prev();
+        }
         this.drainResolve = res;
       });
     }
   }
+
+  private async emitFrame(buffer: Buffer): Promise<void> {
+    if (!this.running) return;
+    if (this.streamSink && this.timeline) {
+      const frame = this.timeline.getLastFrame();
+      if (frame) {
+        const ok = this.streamSink.writeFrame(buffer, frame.cursor, frame.hud);
+        if (!ok) await this.streamSink.waitForDrain();
+      }
+    } else {
+      await this.writeFrame(buffer);
+    }
+  }
+
+  private static readonly CAPTURE_TIMEOUT_MS = 200;
 
   private async raceStop<T>(promise: Promise<T>): Promise<T | null> {
     const stopped = this.stoppedPromise!.then((): null => null);
@@ -159,14 +203,15 @@ export class Recorder {
   }
 
   private async captureLoop(client: CDPClient) {
-    let lastFrameTime = Date.now();
+    const startTime = Date.now();
     let consecutiveErrors = 0;
+    let lastGoodFrame: Buffer | null = null;
 
     while (this.running) {
+      let capturedBuffer: Buffer | null = null;
+
       try {
-        if (this.timeline) {
-          this.timeline.tick();
-        } else {
+        if (!this.timeline) {
           const evalResult = await this.raceStop(
             client.Runtime.evaluate({
               expression: "window.__tickCursor&&window.__tickCursor()",
@@ -174,48 +219,61 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
-        const screenshotResult = await this.raceStop(
-          client.Page.captureScreenshot({
-            format: "jpeg",
-            quality: 60,
-            optimizeForSpeed: true,
-          }),
+
+        const timeout = new Promise<"timeout">((r) =>
+          setTimeout(() => r("timeout"), Recorder.CAPTURE_TIMEOUT_MS),
         );
-        if (!screenshotResult) break;
+        const result = await Promise.race([
+          client.Page.captureScreenshot({ format: "jpeg", quality: 92 }),
+          timeout,
+          this.stoppedPromise!.then(() => "stopped" as const),
+        ]);
 
-        const buffer = Buffer.from(screenshotResult.data, "base64");
-        const now = Date.now();
-        const elapsed = now - lastFrameTime;
-        const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
+        if (result === "stopped") break;
 
-        if (frameSlots > 1) {
-          for (let i = 0; i < frameSlots - 1; i++) {
-            if (this.timeline) this.timeline.tickDuplicate();
-            await this.writeFrame(buffer);
-            this.frameCount++;
-          }
+        if (result !== "timeout") {
+          capturedBuffer = Buffer.from(result.data, "base64");
+          lastGoodFrame = capturedBuffer;
+          consecutiveErrors = 0;
+        } else {
+          consecutiveErrors++;
+        }
+      } catch {
+        if (!this.running) break;
+        consecutiveErrors++;
+      }
+
+      if (consecutiveErrors >= 600) {
+        console.error(
+          `Recording aborted after ${consecutiveErrors} consecutive capture failures`,
+        );
+        break;
+      }
+
+      const buffer = capturedBuffer ?? lastGoodFrame;
+      if (buffer) {
+        if (this.timeline) this.timeline.tick();
+        const expectedFrames = Math.max(
+          this.frameCount + 1,
+          Math.round((Date.now() - startTime) / this.frameMs),
+        );
+        const framesNeeded = expectedFrames - this.frameCount;
+
+        for (let i = 0; i < framesNeeded - 1; i++) {
+          if (this.timeline) this.timeline.tick();
+          await this.emitFrame(buffer);
+          this.frameCount++;
         }
 
-        await this.writeFrame(buffer);
+        await this.emitFrame(buffer);
         this.frameCount++;
 
-        if (this.framesDir) {
+        if (capturedBuffer && this.framesDir) {
           const padded = String(this.frameCount).padStart(5, "0");
           writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), buffer);
         }
-
-        lastFrameTime = now;
-        consecutiveErrors = 0;
-      } catch (err) {
-        if (!this.running) break;
-        consecutiveErrors++;
-        if (consecutiveErrors >= 10) {
-          console.error(
-            `Recording aborted after ${consecutiveErrors} consecutive capture failures:`,
-            err,
-          );
-          break;
-        }
+      } else {
+        await new Promise((r) => setTimeout(r, this.frameMs));
       }
     }
   }
@@ -241,6 +299,53 @@ export class Recorder {
 
     if (this.droppedFrames > 0) {
       console.warn(`Warning: ${this.droppedFrames} frame(s) dropped during recording`);
+    }
+
+    if (this.streamSink) {
+      try {
+        await this.streamSink.finish();
+      } catch (err) {
+        console.error("Stream compositor error:", err);
+      }
+      this.streamSink = null;
+
+      if (this.frameCount === 0) {
+        rmSync(this.tempVideo, { force: true });
+        return;
+      }
+
+      this._composedInline = true;
+      const durationSec = this.frameCount / this.fps;
+      const events = this.timeline?.getEvents() ?? this.events;
+      const ext = extname(this.outputPath).toLowerCase();
+
+      try {
+        mkdirSync(resolve(this.outputPath, ".."), { recursive: true });
+        if (ext === ".webm") {
+          finalizeWebm(
+            this.ffmpegPath,
+            this.tempVideo,
+            this.outputPath,
+            events,
+            durationSec,
+            this.sfx,
+          );
+        } else if (ext === ".gif") {
+          finalizeGif(this.ffmpegPath, this.tempVideo, this.outputPath, this.outputWidth);
+        } else {
+          finalizeMp4(
+            this.ffmpegPath,
+            this.tempVideo,
+            this.outputPath,
+            events,
+            durationSec,
+            { remux: true, sfx: this.sfx },
+          );
+        }
+      } finally {
+        rmSync(this.tempVideo, { force: true });
+      }
+      return;
     }
 
     if (this.ffmpegProcess) {
@@ -275,8 +380,6 @@ export class Recorder {
       return;
     }
 
-    // When a timeline is set, the caller is responsible for the temp video
-    // (e.g. renaming it for later compositing). Don't delete or finalize it.
     if (this.timeline) {
       return;
     }

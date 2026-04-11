@@ -1,5 +1,5 @@
 import type { CDPClient, Point } from "./types.js";
-import { FRAME_MS, CAPTURE_CYCLE_MS } from "./types.js";
+import { FRAME_MS } from "./types.js";
 import type { RecordingContext } from "./actions.js";
 
 /**
@@ -99,7 +99,7 @@ export async function animateMoveTo(
   if (ctx.isRecording && ctx.timeline) {
     ctx.timeline.setCursorPath(positions);
 
-    await new Promise((r) => setTimeout(r, NUM_STEPS * CAPTURE_CYCLE_MS));
+    await new Promise((r) => setTimeout(r, duration));
 
     await client.Input.dispatchMouseEvent({
       type: "mouseMoved",
@@ -127,7 +127,7 @@ export async function animateMoveTo(
     })()`,
   });
 
-  await new Promise((r) => setTimeout(r, NUM_STEPS * CAPTURE_CYCLE_MS));
+  await new Promise((r) => setTimeout(r, duration));
 
   await client.Input.dispatchMouseEvent({
     type: "mouseMoved",

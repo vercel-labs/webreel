@@ -1,0 +1,8 @@
+zig-out/
+zig-cache/
+.zig-cache/
+dist/
+node_modules/
+deps/wgpu-native/
+deps/stb/*.h
+deps/nanosvg/*.h

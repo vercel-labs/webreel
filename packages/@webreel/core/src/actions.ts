@@ -218,7 +218,7 @@ export async function moveCursorTo(
 
 async function cursorDown(ctx: RecordingContext, client: CDPClient): Promise<void> {
   if (ctx.isRecording) {
-    getTimeline(ctx).setCursorScale(0.75);
+    getTimeline(ctx).setCursorScaleAnimated(0.75, 4);
     return;
   }
   await client.Runtime.evaluate({
@@ -236,7 +236,7 @@ async function cursorDown(ctx: RecordingContext, client: CDPClient): Promise<voi
 
 async function cursorUp(ctx: RecordingContext, client: CDPClient): Promise<void> {
   if (ctx.isRecording) {
-    getTimeline(ctx).setCursorScale(1);
+    getTimeline(ctx).setCursorScaleAnimated(1, 6);
     return;
   }
   await client.Runtime.evaluate({
@@ -371,11 +371,14 @@ export async function clickAt(
   const shiftFlag = (flag & 8) !== 0;
   const altFlag = (flag & 1) !== 0;
 
-  // Prevent CDP-triggered mouse events from reaching app JS handlers, while
-  // preserving native browser behaviors (focus changes, selection clearing,
-  // caret placement). CDP's Input.dispatchMouseEvent is unreliable for JS
-  // event delivery and often drops modifier flags. We block propagation to
-  // app code but skip preventDefault so Chrome still performs default actions.
+  // Prevent CDP-triggered mouse events from reaching app JS handlers.
+  // CDP's Input.dispatchMouseEvent is unreliable for JS event delivery and
+  // often drops modifier flags. We block propagation to app code. For
+  // mousedown/mouseup we skip preventDefault so Chrome still updates focus
+  // and caret placement. For the click event we also call preventDefault
+  // to stop the browser from following <a> hrefs (which would cause a full
+  // page navigation instead of the framework's client-side routing). The
+  // synthetic JS click dispatched afterward handles proper event delivery.
   await client.Runtime.evaluate({
     expression: `(() => {
       var events = ['pointerdown','mousedown','pointerup','mouseup','click'];
@@ -383,6 +386,7 @@ export async function clickAt(
         document.addEventListener(evt, function __wrBlock(e) {
           if (e.__wrSynthetic) return;
           e.stopImmediatePropagation();
+          if (evt === 'click') e.preventDefault();
           document.removeEventListener(evt, __wrBlock, true);
         }, true);
       });

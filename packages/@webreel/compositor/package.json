@@ -1,0 +1,32 @@
+{
+  "name": "@webreel/compositor",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Native Zig compositor for webreel recording pipeline - GPU (wgpu) with CPU (SIMD) fallback.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/binding/index.d.ts",
+      "import": "./dist/binding/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "zig-out"
+  ],
+  "scripts": {
+    "setup": "sh scripts/fetch-deps.sh",
+    "build:zig": "zig build -Doptimize=ReleaseFast",
+    "build:zig:gpu": "zig build -Doptimize=ReleaseFast -Dgpu=true",
+    "build:ts": "tsc",
+    "build": "pnpm setup && pnpm build:zig && pnpm build:ts",
+    "type-check": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5"
+  }
+}
