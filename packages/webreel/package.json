@@ -1,14 +1,14 @@
 {
-  "name": "webreel",
-  "version": "0.1.4",
-  "description": "Record scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, and sound effects.",
-  "homepage": "https://webreel.dev",
+  "name": "@lgariv/webreel",
+  "version": "0.1.4-beta-20260418T165223Z",
+  "description": "Record scripted browser demos as MP4, GIF, or WebM with cursor animation, keystroke overlays, sound effects, and cinematic autozoom. Fork of vercel-labs/webreel.",
+  "homepage": "https://github.com/lgariv-dn/webreel",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/webreel.git"
+    "url": "https://github.com/lgariv-dn/webreel.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/webreel/issues"
+    "url": "https://github.com/lgariv-dn/webreel/issues"
   },
   "keywords": [
     "video",
@@ -41,7 +41,9 @@
     "node": ">=18"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "clean": "rm -rf dist",
@@ -51,7 +53,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@webreel/core": "workspace:*",
+    "@lgariv/webreel-core": "workspace:*",
     "commander": "^14.0.3",
     "jiti": "^2.6.1",
     "jsonc-parser": "^3.3.1"

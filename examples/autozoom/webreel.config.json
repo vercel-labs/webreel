@@ -1,0 +1,26 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "autozoom": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".card",
+      "autoZoom": true,
+      "defaultDelay": 500,
+      "steps": [
+        { "action": "pause", "ms": 1500 },
+        { "action": "type", "text": "Jane Doe", "selector": "#name", "charDelay": 80 },
+        {
+          "action": "type",
+          "text": "jane@acme.com",
+          "selector": "#email",
+          "charDelay": 80
+        },
+        { "action": "click", "selector": "#role-btn" },
+        { "action": "click", "text": "Engineer" },
+        { "action": "click", "selector": "#save", "delay": 1200 }
+      ]
+    }
+  }
+}

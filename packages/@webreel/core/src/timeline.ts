@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import type { Point, SoundEvent } from "./types.js";
+import type { ZoomEvent } from "./autozoom.js";
 import {
   TARGET_FPS,
   DEFAULT_CURSOR_SVG,
@@ -44,6 +45,7 @@ export interface TimelineData {
   };
   frames: FrameData[];
   events: SoundEvent[];
+  zoomEvents?: ZoomEvent[];
 }
 
 export class InteractionTimeline {
@@ -59,6 +61,7 @@ export class InteractionTimeline {
   private events: SoundEvent[] = [];
   private frameCount = 0;
   private tickResolvers: Array<() => void> = [];
+  private pathCompleteResolvers: Array<() => void> = [];
 
   private width: number;
   private height: number;
@@ -143,6 +146,24 @@ export class InteractionTimeline {
     });
   }
 
+  // Resolves when the current cursorPath is fully consumed. If no path is
+  // active, resolves immediately. Used by animateMoveTo to fire the next
+  // action (e.g. a click) exactly when the cursor arrives at its target —
+  // regardless of capture rate, tickDuplicate cadence, or hardware speed.
+  waitForPathComplete(): Promise<void> {
+    if (this.cursorPath === null) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.pathCompleteResolvers.push(resolve);
+    });
+  }
+
+  private maybeResolvePathComplete(): void {
+    if (this.cursorPath !== null || this.pathCompleteResolvers.length === 0) return;
+    const resolvers = this.pathCompleteResolvers;
+    this.pathCompleteResolvers = [];
+    for (const resolve of resolvers) resolve();
+  }
+
   tick(): void {
     if (this.cursorPath && this.pathIndex < this.cursorPath.length) {
       const p = this.cursorPath[this.pathIndex++];
@@ -158,10 +179,32 @@ export class InteractionTimeline {
     const resolvers = this.tickResolvers;
     this.tickResolvers = [];
     for (const resolve of resolvers) resolve();
+
+    this.maybeResolvePathComplete();
   }
 
   tickDuplicate(): void {
+    // Advance the cursor along the precomputed path on duplicate slots, so
+    // every 60fps output frame shows a unique cursor position even when the
+    // underlying screenshot is repeated. Without this, cursor motion runs at
+    // the capture rate (~28fps) in a 60fps container, producing visible stutter.
+    //
+    // Critical: do NOT fire tickResolvers here — those gate action timing
+    // (e.g. typeText inter-keystroke cadence via waitForNextTick) on REAL
+    // captured frames. Only the real `tick()` resolves them.
+    // `pathCompleteResolvers` DO fire here though — a path that exhausts on
+    // a duplicate slot is just as arrived as one that exhausts on a real tick.
+    if (this.cursorPath && this.pathIndex < this.cursorPath.length) {
+      const p = this.cursorPath[this.pathIndex++];
+      this.currentCursor.x = p.x;
+      this.currentCursor.y = p.y;
+      if (this.pathIndex >= this.cursorPath.length) {
+        this.cursorPath = null;
+      }
+    }
     this.pushCurrentState();
+
+    this.maybeResolvePathComplete();
   }
 
   private pushCurrentState(): void {
