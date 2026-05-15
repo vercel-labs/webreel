@@ -141,7 +141,7 @@ webreel composite
 webreel composite hero login
 ```
 
-Raw video and timeline data are saved in `.webreel/raw/` and `.webreel/timelines/` during `webreel record`. Use `composite` to re-apply cursor overlays, HUD, and sound effects without re-running the browser.
+Raw video and timeline data are saved in `.webreel/raw/` and `.webreel/timelines/` during `webreel record`. Timeline JSON includes cursor frames, sound events, and per-step `startMs` / `endMs` metadata so recordings can be synced with chapters, logs, or other external traces. Use `composite` to re-apply cursor overlays, HUD, and sound effects without re-running the browser.
 
 ## Config format
 

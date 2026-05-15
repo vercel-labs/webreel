@@ -130,7 +130,7 @@ webreel preview hero --verbose
 
 ### Composite
 
-Re-composite videos from stored raw recordings and timelines without re-recording:
+Re-composite videos from stored raw recordings and timelines without re-recording. Timeline JSON includes cursor frames, sound events, and per-step `startMs` / `endMs` metadata so recordings can be synced with chapters, logs, or other external traces:
 
 ```bash
 webreel composite

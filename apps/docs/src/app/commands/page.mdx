@@ -138,7 +138,7 @@ webreel composite hero
 webreel composite -c custom.config.json
 ```
 
-Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timelines/` after the first recording.
+Raw video and timeline data are stored in `.webreel/raw/` and `.webreel/timelines/` after the first recording. Timeline JSON includes cursor frames, sound events, and per-step `startMs` / `endMs` metadata so recordings can be synced with chapters, logs, or other external traces.
 
 <table>
   <thead>

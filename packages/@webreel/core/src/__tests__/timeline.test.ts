@@ -6,6 +6,7 @@ describe("InteractionTimeline", () => {
     const tl = new InteractionTimeline(1080, 1080);
     expect(tl.getFrameCount()).toBe(0);
     expect(tl.getEvents()).toEqual([]);
+    expect(tl.getSteps()).toEqual([]);
   });
 
   it("tick advances frame count", () => {
@@ -33,6 +34,31 @@ describe("InteractionTimeline", () => {
     expect(events[0].timeMs).toBeCloseTo(1000, 0);
   });
 
+  it("tracks step timing metadata", () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    const startMs = tl.getCurrentTimeMs();
+    for (let i = 0; i < 30; i++) tl.tick();
+    tl.addStep({
+      index: 0,
+      action: "pause",
+      startMs,
+      endMs: tl.getCurrentTimeMs(),
+      label: "intro",
+      description: "Let page render",
+    });
+
+    expect(tl.getSteps()).toEqual([
+      {
+        index: 0,
+        action: "pause",
+        startMs: 0,
+        endMs: 500,
+        label: "intro",
+        description: "Let page render",
+      },
+    ]);
+  });
+
   it("toJSON produces valid timeline data", () => {
     const tl = new InteractionTimeline(1920, 1080, { zoom: 2 });
     tl.tick();
@@ -42,6 +68,7 @@ describe("InteractionTimeline", () => {
     expect(data.height).toBe(1080);
     expect(data.zoom).toBe(2);
     expect(data.frames).toHaveLength(1);
+    expect(data.steps).toEqual([]);
     expect(data.theme.cursorSize).toBe(24);
   });
 
@@ -53,6 +80,7 @@ describe("InteractionTimeline", () => {
     tl.setCursorPath([{ x: 100, y: 200 }]);
     tl.tick();
     tl.addEvent("key");
+    tl.addStep({ index: 1, action: "key", startMs: 0, endMs: 16.666666666666668 });
     tl.tick();
 
     const json = tl.toJSON();
@@ -61,6 +89,7 @@ describe("InteractionTimeline", () => {
 
     expect(reJson.frames).toEqual(json.frames);
     expect(reJson.events).toEqual(json.events);
+    expect(reJson.steps).toEqual(json.steps);
     expect(reJson.width).toBe(json.width);
     expect(reJson.height).toBe(json.height);
     expect(reJson.zoom).toBe(json.zoom);

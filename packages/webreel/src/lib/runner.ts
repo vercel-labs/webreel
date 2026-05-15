@@ -277,6 +277,7 @@ export async function runVideo(
     for (let i = 0; i < config.steps.length; i++) {
       const step = config.steps[i];
       if (verbose) console.log(formatStep(i, step));
+      const stepStartMs = timeline?.getCurrentTimeMs();
 
       try {
         switch (step.action) {
@@ -440,6 +441,16 @@ export async function runVideo(
         const postDelay = stepDelay ?? config.defaultDelay;
         if (postDelay !== undefined && postDelay > 0) {
           await pause(postDelay);
+        }
+        if (timeline && stepStartMs !== undefined) {
+          timeline.addStep({
+            index: i,
+            action: step.action,
+            startMs: stepStartMs,
+            endMs: timeline.getCurrentTimeMs(),
+            ...(step.label ? { label: step.label } : {}),
+            ...(step.description ? { description: step.description } : {}),
+          });
         }
       } catch (err) {
         throw new Error(
