@@ -44,6 +44,16 @@ export interface TimelineData {
   };
   frames: FrameData[];
   events: SoundEvent[];
+  steps: TimelineStep[];
+}
+
+export interface TimelineStep {
+  index: number;
+  action: string;
+  startMs: number;
+  endMs: number;
+  label?: string;
+  description?: string;
 }
 
 export class InteractionTimeline {
@@ -57,6 +67,7 @@ export class InteractionTimeline {
   private currentHud: HudState | null = null;
   private frames: FrameData[] = [];
   private events: SoundEvent[] = [];
+  private steps: TimelineStep[] = [];
   private frameCount = 0;
   private tickResolvers: Array<() => void> = [];
 
@@ -82,6 +93,7 @@ export class InteractionTimeline {
       hud?: Partial<TimelineData["theme"]["hud"]>;
       loadedFrames?: FrameData[];
       loadedEvents?: SoundEvent[];
+      loadedSteps?: TimelineStep[];
     },
   ) {
     this.width = width;
@@ -113,6 +125,9 @@ export class InteractionTimeline {
     if (options?.loadedEvents) {
       this.events = options.loadedEvents;
     }
+    if (options?.loadedSteps) {
+      this.steps = options.loadedSteps;
+    }
   }
 
   setCursorPath(positions: Point[]): void {
@@ -133,8 +148,16 @@ export class InteractionTimeline {
   }
 
   addEvent(type: "click" | "key"): void {
-    const timeMs = (this.frameCount / this.fps) * 1000;
+    const timeMs = this.getCurrentTimeMs();
     this.events.push({ type, timeMs });
+  }
+
+  addStep(step: TimelineStep): void {
+    this.steps.push(step);
+  }
+
+  getCurrentTimeMs(): number {
+    return (this.frameCount / this.fps) * 1000;
   }
 
   waitForNextTick(): Promise<void> {
@@ -176,6 +199,10 @@ export class InteractionTimeline {
     return this.events;
   }
 
+  getSteps(): TimelineStep[] {
+    return this.steps;
+  }
+
   getFrameCount(): number {
     return this.frameCount;
   }
@@ -194,6 +221,7 @@ export class InteractionTimeline {
       },
       frames: this.frames,
       events: this.events,
+      steps: this.steps,
     };
   }
 
@@ -211,6 +239,7 @@ export class InteractionTimeline {
       hud: json.theme.hud,
       loadedFrames: json.frames,
       loadedEvents: json.events,
+      loadedSteps: json.steps,
     });
   }
 }
