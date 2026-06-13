@@ -440,6 +440,38 @@ Navigate to a new URL during a recording. Useful for multi-page flows where you 
   </tbody>
 </table>
 
+## navigateHref
+
+Read an element's `href` attribute and navigate the current page to that URL. This is useful when a workflow generates a fresh link during the recording, such as a preview, deployment, or published report URL.
+
+```json
+{ "action": "wait", "selector": "a.preview-link" }
+{ "action": "navigateHref", "selector": "a.preview-link" }
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>selector</code>
+      </td>
+      <td>string</td>
+      <td>
+        CSS selector for an element with an <code>href</code> attribute
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+The href is resolved against the current page URL before navigation, so relative links work too.
+
 ## hover
 
 Hover over an element, triggering any CSS hover states or JavaScript hover handlers.

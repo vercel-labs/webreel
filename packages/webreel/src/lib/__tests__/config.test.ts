@@ -194,6 +194,18 @@ describe("validateStep", () => {
     expect(errors).toEqual([]);
   });
 
+  it("validates navigateHref requires selector", () => {
+    const errors = validate({ action: "navigateHref" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].selector" }),
+    );
+  });
+
+  it("accepts valid navigateHref", () => {
+    const errors = validate({ action: "navigateHref", selector: "a.preview-link" });
+    expect(errors).toEqual([]);
+  });
+
   it("accepts description field on any step", () => {
     const errors = validate({
       action: "pause",

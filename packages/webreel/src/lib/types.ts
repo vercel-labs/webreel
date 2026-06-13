@@ -100,6 +100,14 @@ export interface StepNavigate {
   description?: string;
 }
 
+export interface StepNavigateHref {
+  action: "navigateHref";
+  selector: string;
+  label?: string;
+  delay?: number;
+  description?: string;
+}
+
 export interface StepHover {
   action: "hover";
   text?: string;
@@ -132,6 +140,7 @@ export type Step =
   | StepMoveTo
   | StepScreenshot
   | StepNavigate
+  | StepNavigateHref
   | StepHover
   | StepSelect;
 
