@@ -183,20 +183,21 @@ Record specific videos by name: `webreel record hero login`.
 
 Each step has an `action` field. Most steps accept optional `label`, `delay` (ms after step), and `description` fields.
 
-| Action       | Key fields                                          | Purpose                            |
-| ------------ | --------------------------------------------------- | ---------------------------------- |
-| `pause`      | `ms`                                                | Wait for a duration                |
-| `click`      | `text` or `selector`, `within`, `modifiers`         | Click an element                   |
-| `type`       | `text`, `selector`, `within`, `charDelay`, `method` | Type text into an input            |
-| `key`        | `key`, `target`                                     | Press a key combo (e.g. `"cmd+s"`) |
-| `drag`       | `from`, `to` (element targets)                      | Drag between two elements          |
-| `scroll`     | `x`, `y`, `selector`                                | Scroll the page or an element      |
-| `wait`       | `selector` or `text`, `timeout`                     | Wait for an element to appear      |
-| `moveTo`     | `text` or `selector`, `within`                      | Move cursor to an element          |
-| `navigate`   | `url`                                               | Navigate to a new URL              |
-| `hover`      | `text` or `selector`, `within`                      | Hover over an element              |
-| `select`     | `selector`, `value`                                 | Select a dropdown value            |
-| `screenshot` | `output`                                            | Capture a PNG screenshot           |
+| Action         | Key fields                                          | Purpose                            |
+| -------------- | --------------------------------------------------- | ---------------------------------- |
+| `pause`        | `ms`                                                | Wait for a duration                |
+| `click`        | `text` or `selector`, `within`, `modifiers`         | Click an element                   |
+| `type`         | `text`, `selector`, `within`, `charDelay`, `method` | Type text into an input            |
+| `key`          | `key`, `target`                                     | Press a key combo (e.g. `"cmd+s"`) |
+| `drag`         | `from`, `to` (element targets)                      | Drag between two elements          |
+| `scroll`       | `x`, `y`, `selector`                                | Scroll the page or an element      |
+| `wait`         | `selector` or `text`, `timeout`                     | Wait for an element to appear      |
+| `moveTo`       | `text` or `selector`, `within`                      | Move cursor to an element          |
+| `navigate`     | `url`                                               | Navigate to a new URL              |
+| `navigateHref` | `selector`                                          | Navigate to a link element's href  |
+| `hover`        | `text` or `selector`, `within`                      | Hover over an element              |
+| `select`       | `selector`, `value`                                 | Select a dropdown value            |
+| `screenshot`   | `output`                                            | Capture a PNG screenshot           |
 
 For full field details on every step type, see [steps-reference.md](steps-reference.md).
 

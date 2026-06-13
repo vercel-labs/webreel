@@ -54,6 +54,8 @@ export function formatStep(i: number, step: Step): string {
       return `[step ${i}] screenshot "${step.output}"${desc}`;
     case "navigate":
       return `[step ${i}] navigate "${step.url}"${desc}`;
+    case "navigateHref":
+      return `[step ${i}] navigateHref selector="${step.selector}"${desc}`;
     case "hover":
       return `[step ${i}] hover ${step.text ? `text="${step.text}"` : `selector="${step.selector}"`}${desc}`;
     case "select":
@@ -390,6 +392,33 @@ export async function runVideo(
           case "navigate": {
             const navUrl = resolveUrl(step.url, config.baseUrl ?? "", configDir);
             await navigate(client, navUrl);
+            break;
+          }
+
+          case "navigateHref": {
+            // Runtime.evaluate does not surface in-page exceptions, so the
+            // probe returns sentinels for the two expected failure modes.
+            const result = await client.Runtime.evaluate({
+              expression: `(() => {
+                const el = document.querySelector(${JSON.stringify(step.selector)});
+                if (!el) return "__WEBREEL_NOT_FOUND__";
+                const href = el.href || el.getAttribute("href");
+                if (!href) return "__WEBREEL_NO_HREF__";
+                return new URL(href, window.location.href).href;
+              })()`,
+              returnByValue: true,
+            });
+            const href = result.result?.value;
+            if (href === "__WEBREEL_NOT_FOUND__") {
+              throw new Error(`Element not found: selector="${step.selector}"`);
+            }
+            if (href === "__WEBREEL_NO_HREF__") {
+              throw new Error(`Element has no href: selector="${step.selector}"`);
+            }
+            if (typeof href !== "string" || href.length === 0) {
+              throw new Error("navigateHref did not resolve a URL");
+            }
+            await navigate(client, href);
             break;
           }
 

@@ -340,6 +340,9 @@
           "$ref": "#/$defs/stepNavigate"
         },
         {
+          "$ref": "#/$defs/stepNavigateHref"
+        },
+        {
           "$ref": "#/$defs/stepHover"
         },
         {
@@ -701,6 +704,31 @@
           "type": "string",
           "minLength": 1,
           "description": "URL to navigate to. Resolved relative to baseUrl if set."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stepNavigateHref": {
+      "type": "object",
+      "required": ["action", "selector"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "navigateHref"
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector for an element with an href attribute."
         },
         "label": {
           "$ref": "#/$defs/label"

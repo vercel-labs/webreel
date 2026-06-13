@@ -81,6 +81,11 @@ describe("formatStep", () => {
     expect(formatStep(0, step)).toBe('[step 0] navigate "https://example.com"');
   });
 
+  it("formats navigateHref step", () => {
+    const step: Step = { action: "navigateHref", selector: "a.preview-link" };
+    expect(formatStep(0, step)).toBe('[step 0] navigateHref selector="a.preview-link"');
+  });
+
   it("formats hover step", () => {
     const step: Step = { action: "hover", text: "Link" };
     expect(formatStep(0, step)).toBe('[step 0] hover text="Link"');

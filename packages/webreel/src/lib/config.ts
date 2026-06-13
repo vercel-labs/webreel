@@ -288,6 +288,7 @@ const VALID_ACTIONS = new Set([
   "wait",
   "screenshot",
   "navigate",
+  "navigateHref",
   "hover",
   "select",
 ]);
@@ -380,6 +381,7 @@ const KNOWN_STEP_KEYS: Record<string, Set<string>> = {
   ]),
   screenshot: new Set(["action", "output", "label", "delay", "description"]),
   navigate: new Set(["action", "url", "label", "delay", "description"]),
+  navigateHref: new Set(["action", "selector", "label", "delay", "description"]),
   hover: new Set([
     "action",
     "text",
@@ -617,6 +619,15 @@ function validateStep(step: unknown, index: number): ValidationError[] {
     case "navigate":
       if (typeof s.url !== "string" || s.url.length === 0) {
         errors.push({ path: `${prefix}.url`, message: "Must be a non-empty string" });
+      }
+      break;
+
+    case "navigateHref":
+      if (typeof s.selector !== "string" || s.selector.length === 0) {
+        errors.push({
+          path: `${prefix}.selector`,
+          message: "Must be a non-empty CSS selector string",
+        });
       }
       break;
 

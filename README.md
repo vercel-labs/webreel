@@ -165,20 +165,21 @@ webreel record --help
 
 ### Actions
 
-| Action       | Fields                                                       | Description                          |
-| ------------ | ------------------------------------------------------------ | ------------------------------------ |
-| `pause`      | `ms`                                                         | Wait for a duration                  |
-| `click`      | `text` or `selector`, optional `within`, `modifiers`         | Move cursor to an element and click  |
-| `key`        | `key` (e.g. `"cmd+z"`), optional `label`                     | Press a key or key combo             |
-| `type`       | `text`, optional `selector`, `within`, `charDelay`, `method` | Type text character by character     |
-| `scroll`     | optional `x`, `y`, `selector`                                | Scroll the page or an element        |
-| `wait`       | `selector` or `text`, optional `timeout`                     | Wait for an element to appear        |
-| `screenshot` | `output`                                                     | Capture a PNG screenshot             |
-| `drag`       | `from` and `to` (each with `text`/`selector`/`within`)       | Drag from one element to another     |
-| `moveTo`     | `text` or `selector`, optional `within`                      | Move cursor to an element            |
-| `navigate`   | `url`                                                        | Navigate to a new URL mid-video      |
-| `hover`      | `text` or `selector`, optional `within`                      | Hover over an element (triggers CSS) |
-| `select`     | `selector`, `value`                                          | Select a value in a dropdown         |
+| Action         | Fields                                                       | Description                          |
+| -------------- | ------------------------------------------------------------ | ------------------------------------ |
+| `pause`        | `ms`                                                         | Wait for a duration                  |
+| `click`        | `text` or `selector`, optional `within`, `modifiers`         | Move cursor to an element and click  |
+| `key`          | `key` (e.g. `"cmd+z"`), optional `label`                     | Press a key or key combo             |
+| `type`         | `text`, optional `selector`, `within`, `charDelay`, `method` | Type text character by character     |
+| `scroll`       | optional `x`, `y`, `selector`                                | Scroll the page or an element        |
+| `wait`         | `selector` or `text`, optional `timeout`                     | Wait for an element to appear        |
+| `screenshot`   | `output`                                                     | Capture a PNG screenshot             |
+| `drag`         | `from` and `to` (each with `text`/`selector`/`within`)       | Drag from one element to another     |
+| `moveTo`       | `text` or `selector`, optional `within`                      | Move cursor to an element            |
+| `navigate`     | `url`                                                        | Navigate to a new URL mid-video      |
+| `navigateHref` | `selector`                                                   | Navigate to a link element's href    |
+| `hover`        | `text` or `selector`, optional `within`                      | Hover over an element (triggers CSS) |
+| `select`       | `selector`, `value`                                          | Select a value in a dropdown         |
 
 All steps (except `pause`) accept an optional `delay` field (ms to wait after the step). Use `defaultDelay` at the top-level or per-video to set a default.
 
