@@ -1,5 +1,5 @@
 import { resolve, dirname } from "node:path";
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -29,6 +29,7 @@ import {
   DEFAULT_VIEWPORT_SIZE,
 } from "@webreel/core";
 import type { VideoConfig, Step, ElementTarget } from "./types.js";
+import { registerInterruptCleanup } from "./signals.js";
 
 export function formatStep(i: number, step: Step): string {
   const desc = "description" in step && step.description ? `: ${step.description}` : "";
@@ -67,6 +68,13 @@ export function formatStep(i: number, step: Step): string {
 export function resolveKeyTarget(target: string | ElementTarget): string {
   if (typeof target === "string") return target;
   return target.selector ?? "";
+}
+
+export function resolveTypeMethod(step: {
+  method?: "insertText" | "dispatchKeyEvent";
+  selector?: string;
+}): "insertText" | "dispatchKeyEvent" {
+  return step.method ?? (step.selector ? "insertText" : "dispatchKeyEvent");
 }
 
 export async function resolveTarget(
@@ -152,6 +160,29 @@ export async function runVideo(
   const chrome = await launchChrome({ headless: shouldRecord });
   let clientRef: CDPClient | null = null;
   let recorder: Recorder | null = null;
+
+  // If the process is interrupted, release everything this run owns:
+  // flush and stop ffmpeg, discard the partial capture, close the CDP
+  // connection, and kill Chrome (which also removes its temp profile).
+  const unregisterCleanup = registerInterruptCleanup(async () => {
+    if (recorder) {
+      const tempVideo = recorder.getTempVideoPath();
+      try {
+        await recorder.stop();
+      } catch {
+        // Best-effort shutdown; Chrome teardown below still runs.
+      }
+      rmSync(tempVideo, { force: true });
+    }
+    if (clientRef) {
+      try {
+        await clientRef.close();
+      } catch {
+        // Connection may already be gone.
+      }
+    }
+    await chrome.kill();
+  });
 
   try {
     const client = await connectCDP(chrome.port);
@@ -295,7 +326,7 @@ export async function runVideo(
               await pause(300 + Math.random() * 200);
             }
             await typeText(ctx, client, step.text, step.charDelay, {
-              method: step.selector ? "insertText" : "dispatchKeyEvent",
+              method: resolveTypeMethod(step),
             });
             break;
           }
@@ -450,6 +481,7 @@ export async function runVideo(
       console.log(`Preview complete: ${config.name}`);
     }
   } finally {
+    unregisterCleanup();
     if (recorder) {
       try {
         await recorder.stop();

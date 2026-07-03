@@ -521,6 +521,11 @@
           "minimum": 0,
           "description": "Delay in milliseconds between keystrokes."
         },
+        "method": {
+          "type": "string",
+          "enum": ["insertText", "dispatchKeyEvent"],
+          "description": "How characters are injected. 'insertText' goes through the browser text input pipeline and updates framework-controlled inputs (React and similar) but fires no keydown/keyup events. 'dispatchKeyEvent' fires raw key events. Defaults to 'insertText' when 'selector' is set, otherwise 'dispatchKeyEvent'."
+        },
         "label": {
           "$ref": "#/$defs/label"
         },

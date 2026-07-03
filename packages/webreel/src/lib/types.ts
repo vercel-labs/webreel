@@ -46,6 +46,7 @@ export interface StepType {
   selector?: string;
   within?: string;
   charDelay?: number;
+  method?: "insertText" | "dispatchKeyEvent";
   label?: string;
   delay?: number;
   description?: string;

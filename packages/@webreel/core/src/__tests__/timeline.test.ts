@@ -95,4 +95,29 @@ describe("InteractionTimeline", () => {
     expect(data.frames[1].cursor.y).toBe(40);
     expect(data.frames[2].cursor.x).toBe(30);
   });
+
+  it("waitForNextTick resolves on the next tick", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    let resolved = false;
+    const wait = tl.waitForNextTick().then(() => {
+      resolved = true;
+    });
+    expect(resolved).toBe(false);
+    tl.tick();
+    await wait;
+    expect(resolved).toBe(true);
+  });
+
+  it("releaseWaiters resolves pending waiters", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    const wait = tl.waitForNextTick();
+    tl.releaseWaiters();
+    await expect(wait).resolves.toBeUndefined();
+  });
+
+  it("waitForNextTick resolves immediately after release", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    tl.releaseWaiters();
+    await expect(tl.waitForNextTick()).resolves.toBeUndefined();
+  });
 });

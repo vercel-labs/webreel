@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { fetchJson, downloadAndExtract } from "./download.js";
+import { killProcess } from "./process.js";
 
 export const CHROME_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "chrome");
 export const HEADLESS_SHELL_CACHE_DIR = resolve(
@@ -286,19 +287,7 @@ export async function launchChrome(
         port,
         kill: async () => {
           process.off("exit", cleanup);
-          proc.kill("SIGTERM");
-          const exited = await Promise.race([
-            new Promise<boolean>((resolve) => proc.on("exit", () => resolve(true))),
-            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
-          ]);
-          if (!exited) {
-            const exitPromise = new Promise<void>((resolve) => {
-              if (proc.exitCode !== null) return resolve();
-              proc.on("exit", () => resolve());
-            });
-            proc.kill("SIGKILL");
-            await exitPromise;
-          }
+          await killProcess(proc);
           rmSync(userDataDir, { recursive: true, force: true });
         },
       };

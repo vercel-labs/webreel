@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadWebreelConfig, resolveConfigPath, getConfigDir } from "../lib/config.js";
 import { runVideo } from "../lib/runner.js";
+import { installSignalHandlers } from "../lib/signals.js";
 
 export const previewCommand = new Command("preview")
   .description("Run a video in a visible browser without recording")
@@ -34,6 +35,11 @@ export const previewCommand = new Command("preview")
       }
 
       console.log(`\nPreviewing: ${video.name}`);
-      await runVideo(video, { record: false, verbose, configDir });
+      const uninstallSignalHandlers = installSignalHandlers();
+      try {
+        await runVideo(video, { record: false, verbose, configDir });
+      } finally {
+        uninstallSignalHandlers();
+      }
     },
   );

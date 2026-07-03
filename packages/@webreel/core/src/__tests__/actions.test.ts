@@ -320,13 +320,39 @@ describe("typeText", () => {
     };
   }
 
-  it("uses insertText when method is insertText", async () => {
+  it("batches the whole string into one insertText call when charDelay is 0", async () => {
     const ctx = new RecordingContext();
     const client = createMockClient();
     await typeText(ctx, client, "ab", 0, { method: "insertText" });
+    expect(client.Input.insertText).toHaveBeenCalledTimes(1);
+    expect(client.Input.insertText).toHaveBeenCalledWith({ text: "ab" });
+    expect(client.Input.dispatchKeyEvent).not.toHaveBeenCalled();
+  });
+
+  it("uses one insertText call per character when charDelay is set", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    await typeText(ctx, client, "ab", 1, { method: "insertText" });
     expect(client.Input.insertText).toHaveBeenCalledTimes(2);
     expect(client.Input.insertText).toHaveBeenNthCalledWith(1, { text: "a" });
     expect(client.Input.insertText).toHaveBeenNthCalledWith(2, { text: "b" });
+    expect(client.Input.dispatchKeyEvent).not.toHaveBeenCalled();
+  });
+
+  it("keeps surrogate pairs intact when typing per character", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    const emoji = "\u{1F600}";
+    await typeText(ctx, client, `a${emoji}b`, 1, { method: "insertText" });
+    expect(client.Input.insertText).toHaveBeenCalledTimes(3);
+    expect(client.Input.insertText).toHaveBeenNthCalledWith(2, { text: emoji });
+  });
+
+  it("does nothing for empty text", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    await typeText(ctx, client, "", 0, { method: "insertText" });
+    expect(client.Input.insertText).not.toHaveBeenCalled();
     expect(client.Input.dispatchKeyEvent).not.toHaveBeenCalled();
   });
 
@@ -337,6 +363,19 @@ describe("typeText", () => {
     // 3 events per char: rawKeyDown, char, keyUp
     expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(6);
     expect(client.Input.insertText).not.toHaveBeenCalled();
+  });
+
+  it("sends one key event triple per code point, not per code unit", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+    const emoji = "\u{1F600}";
+    await typeText(ctx, client, emoji, 0, { method: "dispatchKeyEvent" });
+    expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(3);
+    expect(client.Input.dispatchKeyEvent).toHaveBeenNthCalledWith(2, {
+      type: "char",
+      key: emoji,
+      text: emoji,
+    });
   });
 
   it("defaults to dispatchKeyEvent when no method specified", async () => {

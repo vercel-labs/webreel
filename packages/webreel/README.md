@@ -180,20 +180,20 @@ Raw video and timeline data are saved in `.webreel/raw/` and `.webreel/timelines
 
 ### Actions
 
-| Action       | Fields                                                 | Description                           |
-| ------------ | ------------------------------------------------------ | ------------------------------------- |
-| `pause`      | `ms`                                                   | Wait for a duration                   |
-| `click`      | `text` or `selector`, optional `within`, `modifiers`   | Move cursor to an element and click   |
-| `key`        | `key` (e.g. `"cmd+z"`), optional `label`, `target`     | Press a key or key combo              |
-| `type`       | `text`, optional `target`, `charDelay`                 | Type text character by character      |
-| `drag`       | `from` and `to` (each with `text`/`selector`/`within`) | Drag from one element to another      |
-| `scroll`     | optional `x`, `y`, `selector`                          | Scroll the page or a container        |
-| `wait`       | `selector` or `text`, optional `timeout`               | Wait for an element or text to appear |
-| `moveTo`     | `text` or `selector`, optional `within`                | Move cursor to an element             |
-| `screenshot` | `output`                                               | Save a PNG screenshot                 |
-| `navigate`   | `url`                                                  | Navigate to a new URL mid-video       |
-| `hover`      | `text` or `selector`, optional `within`                | Hover over an element (triggers CSS)  |
-| `select`     | `selector`, `value`                                    | Select a value in a dropdown          |
+| Action       | Fields                                                       | Description                           |
+| ------------ | ------------------------------------------------------------ | ------------------------------------- |
+| `pause`      | `ms`                                                         | Wait for a duration                   |
+| `click`      | `text` or `selector`, optional `within`, `modifiers`         | Move cursor to an element and click   |
+| `key`        | `key` (e.g. `"cmd+z"`), optional `label`, `target`           | Press a key or key combo              |
+| `type`       | `text`, optional `selector`, `within`, `charDelay`, `method` | Type text character by character      |
+| `drag`       | `from` and `to` (each with `text`/`selector`/`within`)       | Drag from one element to another      |
+| `scroll`     | optional `x`, `y`, `selector`                                | Scroll the page or a container        |
+| `wait`       | `selector` or `text`, optional `timeout`                     | Wait for an element or text to appear |
+| `moveTo`     | `text` or `selector`, optional `within`                      | Move cursor to an element             |
+| `screenshot` | `output`                                                     | Save a PNG screenshot                 |
+| `navigate`   | `url`                                                        | Navigate to a new URL mid-video       |
+| `hover`      | `text` or `selector`, optional `within`                      | Hover over an element (triggers CSS)  |
+| `select`     | `selector`, `value`                                          | Select a value in a dropdown          |
 
 All steps (except `pause`) accept an optional `delay` field (ms to wait after the step). Use `defaultDelay` at the top-level or per-video to set a default.
 

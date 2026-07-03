@@ -352,6 +352,7 @@ const KNOWN_STEP_KEYS: Record<string, Set<string>> = {
     "selector",
     "within",
     "charDelay",
+    "method",
     "label",
     "delay",
     "description",
@@ -556,6 +557,16 @@ function validateStep(step: unknown, index: number): ValidationError[] {
         errors.push({
           path: `${prefix}.charDelay`,
           message: "Must be a non-negative number",
+        });
+      }
+      if (
+        s.method !== undefined &&
+        s.method !== "insertText" &&
+        s.method !== "dispatchKeyEvent"
+      ) {
+        errors.push({
+          path: `${prefix}.method`,
+          message: 'Must be "insertText" or "dispatchKeyEvent"',
         });
       }
       break;

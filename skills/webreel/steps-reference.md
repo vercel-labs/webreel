@@ -56,13 +56,16 @@ Provide `text` or `selector` (at least one).
 
 Type text into an input element. If no target is specified, types into the currently focused element.
 
-| Field       | Type     | Required | Description                         |
-| ----------- | -------- | -------- | ----------------------------------- |
-| `action`    | `"type"` | yes      |                                     |
-| `text`      | string   | yes      | Text to type                        |
-| `selector`  | string   | no       | Target input by CSS selector        |
-| `within`    | string   | no       | Scope search to a parent selector   |
-| `charDelay` | number   | no       | Milliseconds between each character |
+| Field       | Type     | Required | Description                                        |
+| ----------- | -------- | -------- | -------------------------------------------------- |
+| `action`    | `"type"` | yes      |                                                    |
+| `text`      | string   | yes      | Text to type                                       |
+| `selector`  | string   | no       | Target input by CSS selector                       |
+| `within`    | string   | no       | Scope search to a parent selector                  |
+| `charDelay` | number   | no       | Milliseconds between each character                |
+| `method`    | string   | no       | `"insertText"` or `"dispatchKeyEvent"` (see below) |
+
+With a `selector`, characters are injected via the browser text input pipeline (`insertText`), which updates framework-controlled inputs (React and similar) but fires no `keydown`/`keyup` events. Without a `selector`, raw key events are dispatched to the focused element. Set `method` explicitly to override either default, for example `"dispatchKeyEvent"` for a search box that filters on `keydown`.
 
 ```json
 { "action": "type", "text": "user@example.com", "selector": "#email", "charDelay": 40 }

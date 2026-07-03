@@ -8,6 +8,7 @@ import {
   filterVideosByName,
 } from "../lib/config.js";
 import { runVideo } from "../lib/runner.js";
+import { installSignalHandlers } from "../lib/signals.js";
 import type { WebreelConfig } from "../lib/types.js";
 
 export function collectIncludePaths(config: WebreelConfig, configPath: string): string[] {
@@ -100,12 +101,7 @@ export const recordCommand = new Command("record")
         return;
       }
 
-      const onSignal = () => {
-        console.log("\nInterrupted. Cleaning up...");
-        process.exit(130);
-      };
-      process.on("SIGINT", onSignal);
-      process.on("SIGTERM", onSignal);
+      const uninstallSignalHandlers = installSignalHandlers();
       try {
         for (const video of videos) {
           await runVideo(video, {
@@ -116,8 +112,7 @@ export const recordCommand = new Command("record")
           });
         }
       } finally {
-        process.off("SIGINT", onSignal);
-        process.off("SIGTERM", onSignal);
+        uninstallSignalHandlers();
       }
 
       if (opts.watch) {
@@ -172,13 +167,15 @@ export const recordCommand = new Command("record")
 
         setupWatchers(webreelConfig);
 
-        process.on("SIGINT", async () => {
-          closeAllWatchers();
-          if (recordingInProgress) {
-            console.log("\nWaiting for current recording to finish...");
-            await recordingInProgress;
-          }
-          process.exit(0);
+        installSignalHandlers({
+          beforeExit: async () => {
+            closeAllWatchers();
+            if (recordingInProgress) {
+              console.log("Waiting for current recording to finish...");
+              await recordingInProgress;
+            }
+            return 0;
+          },
         });
       }
     },

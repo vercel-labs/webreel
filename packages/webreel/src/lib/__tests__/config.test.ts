@@ -143,6 +143,20 @@ describe("validateStep", () => {
     );
   });
 
+  it("validates type rejects unknown method", () => {
+    const errors = validate({ action: "type", text: "hi", method: "paste" });
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.steps[0].method" }),
+    );
+  });
+
+  it("validates type accepts insertText and dispatchKeyEvent methods", () => {
+    for (const method of ["insertText", "dispatchKeyEvent"]) {
+      const errors = validate({ action: "type", text: "hi", method });
+      expect(errors).toEqual([]);
+    }
+  });
+
   it("validates scroll x must be a number", () => {
     const errors = validate({ action: "scroll", x: "bad" });
     expect(errors).toContainEqual(

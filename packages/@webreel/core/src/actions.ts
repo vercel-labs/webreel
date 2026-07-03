@@ -618,6 +618,43 @@ function humanDelay(base: number): number {
   return jitter;
 }
 
+async function dispatchCharKeyEvents(client: CDPClient, char: string): Promise<void> {
+  const charInfo = CHAR_CODES[char];
+  const isLetter = /^[a-zA-Z]$/.test(char);
+
+  let code: string;
+  let keyCode: number;
+
+  if (charInfo) {
+    code = charInfo.code;
+    keyCode = charInfo.keyCode;
+  } else if (isLetter) {
+    code = `Key${char.toUpperCase()}`;
+    keyCode = char.toUpperCase().charCodeAt(0);
+  } else {
+    code = "";
+    keyCode = 0;
+  }
+
+  await client.Input.dispatchKeyEvent({
+    type: "rawKeyDown",
+    key: char,
+    code,
+    windowsVirtualKeyCode: keyCode,
+  });
+  await client.Input.dispatchKeyEvent({
+    type: "char",
+    key: char,
+    text: char,
+  });
+  await client.Input.dispatchKeyEvent({
+    type: "keyUp",
+    key: char,
+    code,
+    windowsVirtualKeyCode: keyCode,
+  });
+}
+
 export async function typeText(
   ctx: RecordingContext,
   client: CDPClient,
@@ -625,48 +662,24 @@ export async function typeText(
   delayMs = 120,
   options?: { method?: "dispatchKeyEvent" | "insertText" },
 ): Promise<void> {
+  if (text.length === 0) return;
   const useInsertText = options?.method === "insertText";
 
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
+  // insertText accepts whole strings; with no per-character pacing a single
+  // call replaces one CDP round-trip per character.
+  if (useInsertText && delayMs <= 0) {
+    await client.Input.insertText({ text });
+    ctx.markEvent("key");
+    return;
+  }
 
+  // Iterate by code point so surrogate pairs (emoji, supplementary CJK)
+  // are never split across two events.
+  for (const char of text) {
     if (useInsertText) {
       await client.Input.insertText({ text: char });
     } else {
-      const charInfo = CHAR_CODES[char];
-      const isLetter = /^[a-zA-Z]$/.test(char);
-
-      let code: string;
-      let keyCode: number;
-
-      if (charInfo) {
-        code = charInfo.code;
-        keyCode = charInfo.keyCode;
-      } else if (isLetter) {
-        code = `Key${char.toUpperCase()}`;
-        keyCode = char.toUpperCase().charCodeAt(0);
-      } else {
-        code = "";
-        keyCode = 0;
-      }
-
-      await client.Input.dispatchKeyEvent({
-        type: "rawKeyDown",
-        key: char,
-        code,
-        windowsVirtualKeyCode: keyCode,
-      });
-      await client.Input.dispatchKeyEvent({
-        type: "char",
-        key: char,
-        text: char,
-      });
-      await client.Input.dispatchKeyEvent({
-        type: "keyUp",
-        key: char,
-        code,
-        windowsVirtualKeyCode: keyCode,
-      });
+      await dispatchCharKeyEvents(client, char);
     }
 
     ctx.markEvent("key");

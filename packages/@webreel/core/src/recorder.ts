@@ -6,6 +6,7 @@ import { TARGET_FPS, DEFAULT_VIEWPORT_SIZE } from "./types.js";
 import type { CDPClient, SoundEvent } from "./types.js";
 import type { RecordingContext } from "./actions.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
+import { hasExited } from "./process.js";
 import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
 import type { InteractionTimeline, TimelineData } from "./timeline.js";
 
@@ -31,6 +32,7 @@ export class Recorder {
   private framesDir: string | null = null;
   private stopResolve: (() => void) | null = null;
   private stoppedPromise: Promise<void> | null = null;
+  private stopOnce: Promise<void> | null = null;
 
   constructor(
     outputWidth = DEFAULT_VIEWPORT_SIZE,
@@ -69,7 +71,14 @@ export class Recorder {
   }
 
   async start(client: CDPClient, outputPath: string, ctx?: RecordingContext) {
+    // Reset before the first await so a stop() arriving while ensureFfmpeg
+    // is in flight (e.g. interrupt during first-run download) is visible
+    // below instead of being wiped out when we resume.
+    this.stopOnce = null;
     this.ffmpegPath = await ensureFfmpeg();
+    if (this.stopOnce) {
+      return;
+    }
     this.outputPath = outputPath;
     this.frameCount = 0;
     this.droppedFrames = 0;
@@ -162,73 +171,68 @@ export class Recorder {
     let lastFrameTime = Date.now();
     let consecutiveErrors = 0;
 
-    while (this.running) {
-      try {
-        if (this.timeline) {
-          this.timeline.tick();
-        } else {
-          const evalResult = await this.raceStop(
-            client.Runtime.evaluate({
-              expression: "window.__tickCursor&&window.__tickCursor()",
-            }),
-          );
-          if (!evalResult) break;
-        }
+    try {
+      while (this.running) {
         try {
-          await this.raceStop(
-            client.Runtime.evaluate({
-              expression:
-                "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
-              awaitPromise: true,
+          if (this.timeline) {
+            this.timeline.tick();
+          } else {
+            const evalResult = await this.raceStop(
+              client.Runtime.evaluate({
+                expression: "window.__tickCursor&&window.__tickCursor()",
+              }),
+            );
+            if (!evalResult) break;
+          }
+
+          const screenshotResult = await this.raceStop(
+            client.Page.captureScreenshot({
+              format: "jpeg",
+              quality: 60,
+              optimizeForSpeed: true,
             }),
           );
-        } catch {
-          // Page may be navigating -- skip sync, screenshot will retry next loop
-        }
+          if (!screenshotResult) break;
 
-        const screenshotResult = await this.raceStop(
-          client.Page.captureScreenshot({
-            format: "jpeg",
-            quality: 60,
-            optimizeForSpeed: true,
-          }),
-        );
-        if (!screenshotResult) break;
+          const buffer = Buffer.from(screenshotResult.data, "base64");
+          const now = Date.now();
+          const elapsed = now - lastFrameTime;
+          const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
 
-        const buffer = Buffer.from(screenshotResult.data, "base64");
-        const now = Date.now();
-        const elapsed = now - lastFrameTime;
-        const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
+          if (frameSlots > 1) {
+            for (let i = 0; i < frameSlots - 1; i++) {
+              if (this.timeline) this.timeline.tickDuplicate();
+              await this.writeFrame(buffer);
+              this.frameCount++;
+            }
+          }
 
-        if (frameSlots > 1) {
-          for (let i = 0; i < frameSlots - 1; i++) {
-            if (this.timeline) this.timeline.tickDuplicate();
-            await this.writeFrame(buffer);
-            this.frameCount++;
+          await this.writeFrame(buffer);
+          this.frameCount++;
+
+          if (this.framesDir) {
+            const padded = String(this.frameCount).padStart(5, "0");
+            writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), buffer);
+          }
+
+          lastFrameTime = now;
+          consecutiveErrors = 0;
+        } catch (err) {
+          if (!this.running) break;
+          consecutiveErrors++;
+          if (consecutiveErrors >= 10) {
+            console.error(
+              `Recording aborted after ${consecutiveErrors} consecutive capture failures:`,
+              err,
+            );
+            break;
           }
         }
-
-        await this.writeFrame(buffer);
-        this.frameCount++;
-
-        if (this.framesDir) {
-          const padded = String(this.frameCount).padStart(5, "0");
-          writeFileSync(resolve(this.framesDir, `frame-${padded}.jpg`), buffer);
-        }
-
-        lastFrameTime = now;
-        consecutiveErrors = 0;
-      } catch (err) {
-        if (!this.running) break;
-        consecutiveErrors++;
-        if (consecutiveErrors >= 10) {
-          console.error(
-            `Recording aborted after ${consecutiveErrors} consecutive capture failures:`,
-            err,
-          );
-          break;
-        }
       }
+    } finally {
+      // However the loop exits (stop, error abort, crash), unblock anyone
+      // waiting on the next timeline tick.
+      this.timeline?.releaseWaiters();
     }
   }
 
@@ -236,7 +240,14 @@ export class Recorder {
     return this.tempVideo;
   }
 
-  async stop() {
+  // stop() can race between the normal finally path and interrupt cleanup;
+  // memoize so both callers await the same shutdown.
+  stop(): Promise<void> {
+    this.stopOnce ??= this.doStop();
+    return this.stopOnce;
+  }
+
+  private async doStop() {
     this.running = false;
     if (this.ctx) this.ctx.setRecorder(null);
 
@@ -266,7 +277,7 @@ export class Recorder {
         }
       }, FFMPEG_CLOSE_TIMEOUT_MS);
       await new Promise<void>((res) => {
-        if (proc.exitCode !== null) {
+        if (hasExited(proc)) {
           res();
           return;
         }

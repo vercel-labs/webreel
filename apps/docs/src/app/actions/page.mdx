@@ -152,6 +152,8 @@ Type a string of text character by character. Useful for filling form fields wit
 { "action": "type", "text": "search query", "selector": "#search" }
 ```
 
+When a `selector` is set, characters are injected with the browser's text input pipeline (`insertText`), which updates framework-controlled inputs (React and similar) but does not fire `keydown`/`keyup` events. Without a `selector`, raw key events are dispatched to the focused element. Set `method` to override the default for either case, for example to drive a search box that filters on `keydown`.
+
 <table>
   <thead>
     <tr>
@@ -187,7 +189,17 @@ Type a string of text character by character. Useful for filling form fields wit
         <code>charDelay</code>
       </td>
       <td>number</td>
-      <td>Milliseconds between each keystroke (default: 80)</td>
+      <td>Milliseconds between each keystroke (default: 120)</td>
+    </tr>
+    <tr>
+      <td>
+        <code>method</code>
+      </td>
+      <td>string</td>
+      <td>
+        <code>"insertText"</code> or <code>"dispatchKeyEvent"</code>. Overrides how
+        characters are injected (default depends on <code>selector</code>)
+      </td>
     </tr>
   </tbody>
 </table>

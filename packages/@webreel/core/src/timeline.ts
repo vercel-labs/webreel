@@ -59,6 +59,7 @@ export class InteractionTimeline {
   private events: SoundEvent[] = [];
   private frameCount = 0;
   private tickResolvers: Array<() => void> = [];
+  private released = false;
 
   private width: number;
   private height: number;
@@ -138,9 +139,19 @@ export class InteractionTimeline {
   }
 
   waitForNextTick(): Promise<void> {
+    if (this.released) return Promise.resolve();
     return new Promise((resolve) => {
       this.tickResolvers.push(resolve);
     });
+  }
+
+  // Once the capture loop stops ticking, pending and future waiters must
+  // resolve immediately or callers like typeText would hang forever.
+  releaseWaiters(): void {
+    this.released = true;
+    const resolvers = this.tickResolvers;
+    this.tickResolvers = [];
+    for (const resolve of resolvers) resolve();
   }
 
   tick(): void {

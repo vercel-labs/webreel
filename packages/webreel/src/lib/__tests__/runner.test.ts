@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import {
   formatStep,
   resolveKeyTarget,
+  resolveTypeMethod,
   resolveUrl,
   randomPointInBox,
   resolveTarget,
@@ -107,6 +108,23 @@ describe("resolveKeyTarget", () => {
 
   it("returns empty string when ElementTarget has no selector", () => {
     expect(resolveKeyTarget({ text: "foo" })).toBe("");
+  });
+});
+
+describe("resolveTypeMethod", () => {
+  it("returns explicit method unchanged", () => {
+    expect(resolveTypeMethod({ method: "dispatchKeyEvent", selector: "#input" })).toBe(
+      "dispatchKeyEvent",
+    );
+    expect(resolveTypeMethod({ method: "insertText" })).toBe("insertText");
+  });
+
+  it("defaults to insertText when a selector is set", () => {
+    expect(resolveTypeMethod({ selector: "#input" })).toBe("insertText");
+  });
+
+  it("defaults to dispatchKeyEvent without a selector", () => {
+    expect(resolveTypeMethod({})).toBe("dispatchKeyEvent");
   });
 });
 
