@@ -5,7 +5,7 @@ import { resolve, extname } from "node:path";
 import sharp from "sharp";
 import type { TimelineData } from "./timeline.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
-import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
+import { finalizeMp4, finalizeWebm, type SfxConfig } from "./media.js";
 
 interface OverlayContext {
   cursorPng: Buffer;
@@ -40,22 +40,36 @@ export async function compose(
     zoom,
   );
 
-  const workDir = resolve(homedir(), ".webreel");
-  mkdirSync(workDir, { recursive: true });
-  const tempComposed = resolve(workDir, `_composed_${Date.now()}.mp4`);
+  const ext = extname(outputPath).toLowerCase();
 
-  try {
+  if (ext === ".gif") {
+    const gifConfig = buildGifConfig(timelineData.width, outputPath);
     await compositeFrames(
       ffmpegPath,
       cleanVideoPath,
       timelineData,
       cursorPng,
       zoom,
-      tempComposed,
-      crf,
+      gifConfig,
+    );
+    return;
+  }
+
+  const workDir = resolve(homedir(), ".webreel");
+  mkdirSync(workDir, { recursive: true });
+  const tempComposed = resolve(workDir, `_composed_${Date.now()}.mp4`);
+
+  try {
+    const mp4Config = buildMp4Config(timelineData.fps, crf, tempComposed);
+    await compositeFrames(
+      ffmpegPath,
+      cleanVideoPath,
+      timelineData,
+      cursorPng,
+      zoom,
+      mp4Config,
     );
 
-    const ext = extname(outputPath).toLowerCase();
     const durationSec = timelineData.frames.length / timelineData.fps;
 
     if (ext === ".webm") {
@@ -67,8 +81,6 @@ export async function compose(
         durationSec,
         sfx,
       );
-    } else if (ext === ".gif") {
-      finalizeGif(ffmpegPath, tempComposed, outputPath, timelineData.width);
     } else {
       finalizeMp4(
         ffmpegPath,
@@ -97,33 +109,19 @@ async function renderCursorPng(
   return sharp(Buffer.from(svgWithSize)).png().toBuffer();
 }
 
-async function compositeFrames(
-  ffmpegPath: string,
-  cleanVideoPath: string,
-  timeline: TimelineData,
-  cursorPng: Buffer,
-  zoom: number,
-  outputPath: string,
-  crf: number,
-): Promise<void> {
-  const { width, height, fps } = timeline;
+interface CompositorFfmpegConfig {
+  filterComplex: string;
+  outputArgs: string[];
+}
 
-  const ffmpeg = spawn(
-    ffmpegPath,
-    [
-      "-y",
-      "-i",
-      cleanVideoPath,
-      "-f",
-      "image2pipe",
-      "-framerate",
-      String(fps),
-      "-c:v",
-      "png",
-      "-i",
-      "pipe:0",
-      "-filter_complex",
-      "[0][1]overlay=0:0:shortest=1",
+function buildMp4Config(
+  fps: number,
+  crf: number,
+  outputPath: string,
+): CompositorFfmpegConfig {
+  return {
+    filterComplex: "[0][1]overlay=0:0:shortest=1",
+    outputArgs: [
       "-c:v",
       "libx264",
       "-preset",
@@ -143,6 +141,52 @@ async function compositeFrames(
       "-r",
       String(fps),
       outputPath,
+    ],
+  };
+}
+
+const GIF_FPS = 15;
+const GIF_BAYER_SCALE = 5;
+
+function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConfig {
+  return {
+    filterComplex: [
+      `[0][1]overlay=0:0:shortest=1`,
+      `fps=${GIF_FPS}`,
+      `scale=${width}:-1:flags=lanczos`,
+      `split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${GIF_BAYER_SCALE}`,
+    ].join(","),
+    outputArgs: ["-loop", "0", outputPath],
+  };
+}
+
+async function compositeFrames(
+  ffmpegPath: string,
+  cleanVideoPath: string,
+  timeline: TimelineData,
+  cursorPng: Buffer,
+  zoom: number,
+  config: CompositorFfmpegConfig,
+): Promise<void> {
+  const { width, height, fps } = timeline;
+
+  const ffmpeg = spawn(
+    ffmpegPath,
+    [
+      "-y",
+      "-i",
+      cleanVideoPath,
+      "-f",
+      "image2pipe",
+      "-framerate",
+      String(fps),
+      "-c:v",
+      "png",
+      "-i",
+      "pipe:0",
+      "-filter_complex",
+      config.filterComplex,
+      ...config.outputArgs,
     ],
     { stdio: ["pipe", "pipe", "pipe"] },
   );
@@ -189,29 +233,12 @@ async function compositeFrames(
   const stdin = ffmpeg.stdin;
   if (!stdin) throw new Error("ffmpeg process has no stdin pipe");
 
-  const drain = (): Promise<void> => new Promise((res) => stdin.once("drain", res));
-
-  for (let i = 0; i < timeline.frames.length; i++) {
-    const frame = timeline.frames[i];
-    const overlayPng = await renderOverlayFrame(
-      frame,
-      width,
-      height,
-      ctx,
-      overlayCache,
-      hudCache,
-    );
-
-    const ok = stdin.write(overlayPng);
-    if (!ok) await drain();
-  }
-
-  stdin.end();
-
   const stderrChunks: Buffer[] = [];
   ffmpeg.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
-  await new Promise<void>((resolveAll, rejectAll) => {
+  // Register close/error listeners immediately to avoid missing events.
+  const KILL_TIMEOUT = 5_000;
+  const ffmpegDone = new Promise<void>((resolveAll, rejectAll) => {
     ffmpeg.on("close", (code) => {
       if (code === 0) {
         resolveAll();
@@ -226,6 +253,114 @@ async function compositeFrames(
     });
     ffmpeg.on("error", rejectAll);
   });
+
+  const PREFETCH_QUEUE_SIZE = 4;
+
+  const state = {
+    abortError: null as Error | null,
+    producerDone: false,
+    // Resolves when the queue has items OR the producer is done.
+    queueResolve: null as (() => void) | null,
+    // Resolves when the consumer dequeues an item (backpressure signal).
+    spaceResolve: null as (() => void) | null,
+  };
+
+  // EPIPE is expected when ffmpeg finishes reading and closes its stdin.
+  stdin.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE") return;
+    if (!state.abortError) state.abortError = err;
+  });
+
+  const queue: Buffer[] = [];
+
+  const notifyConsumer = () => {
+    if (state.queueResolve) {
+      const r = state.queueResolve;
+      state.queueResolve = null;
+      r();
+    }
+  };
+
+  const notifyProducer = () => {
+    if (state.spaceResolve) {
+      const r = state.spaceResolve;
+      state.spaceResolve = null;
+      r();
+    }
+  };
+
+  const enqueue = (buf: Buffer) => {
+    queue.push(buf);
+    notifyConsumer();
+  };
+
+  const waitForItem = (): Promise<void> =>
+    new Promise((r) => {
+      if (queue.length > 0 || state.producerDone) return r();
+      state.queueResolve = r;
+    });
+
+  const waitForSpace = (): Promise<void> =>
+    new Promise((r) => {
+      if (queue.length < PREFETCH_QUEUE_SIZE) return r();
+      state.spaceResolve = r;
+    });
+
+  const drain = (): Promise<void> => new Promise((r) => stdin.once("drain", r));
+
+  const consumer = async () => {
+    while (true) {
+      if (queue.length === 0 && state.producerDone) break;
+      if (queue.length === 0) await waitForItem();
+      if (queue.length === 0) break;
+      if (state.abortError) break;
+
+      while (queue.length > 0) {
+        const buf = queue.shift()!;
+        notifyProducer();
+        const ok = stdin.write(buf);
+        if (!ok && !state.abortError) await drain();
+        if (state.abortError) break;
+      }
+    }
+    stdin.end();
+  };
+
+  const consumerPromise = consumer();
+
+  for (let i = 0; i < timeline.frames.length; i++) {
+    if (state.abortError) break;
+
+    const frame = timeline.frames[i];
+    const overlayPng = await renderOverlayFrame(
+      frame,
+      width,
+      height,
+      ctx,
+      overlayCache,
+      hudCache,
+    );
+
+    if (state.abortError) break;
+
+    if (queue.length >= PREFETCH_QUEUE_SIZE) await waitForSpace();
+
+    if (!state.abortError) enqueue(overlayPng);
+  }
+  state.producerDone = true;
+  notifyConsumer();
+
+  await consumerPromise;
+
+  if (state.abortError) {
+    ffmpeg.kill("SIGTERM");
+    setTimeout(() => {
+      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
+    }, KILL_TIMEOUT);
+    throw state.abortError;
+  }
+
+  await ffmpegDone;
 }
 
 async function renderOverlayFrame(
@@ -236,8 +371,12 @@ async function renderOverlayFrame(
   cache: Map<string, Buffer>,
   hudCache: Map<string, sharp.OverlayOptions>,
 ): Promise<Buffer> {
-  const cx = Math.round(frame.cursor.x * ctx.zoom * 10) / 10;
-  const cy = Math.round(frame.cursor.y * ctx.zoom * 10) / 10;
+  // Whole-pixel rounding is intentional: sub-pixel precision defeats the
+  // overlay cache during cursor dwell/pause (float jitter creates unique keys).
+  // The 1px difference is imperceptible at screen resolution and invisible
+  // in GIF output (downsampled to 15fps with lanczos).
+  const cx = Math.round(frame.cursor.x * ctx.zoom);
+  const cy = Math.round(frame.cursor.y * ctx.zoom);
   const scale = frame.cursor.scale;
   const hudKey = frame.hud ? frame.hud.labels.join("|") : "";
   const cacheKey = `${cx},${cy},${scale},${hudKey}`;
@@ -247,8 +386,8 @@ async function renderOverlayFrame(
 
   const overlays: sharp.OverlayOptions[] = [];
 
-  const icx = Math.round(frame.cursor.x * ctx.zoom) - ctx.hotspotOffsetX;
-  const icy = Math.round(frame.cursor.y * ctx.zoom) - ctx.hotspotOffsetY;
+  const icx = cx - ctx.hotspotOffsetX;
+  const icy = cy - ctx.hotspotOffsetY;
   const cursorVisible =
     icx >= -ctx.cursorWidth && icx < width && icy >= -ctx.cursorHeight && icy < height;
 

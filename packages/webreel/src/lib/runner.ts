@@ -1,12 +1,5 @@
 import { resolve, dirname } from "node:path";
-import {
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  renameSync,
-  rmSync,
-  existsSync,
-} from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -33,6 +26,7 @@ import {
   compose,
   ensureFfmpeg,
   extractThumbnail,
+  moveFileSync,
   DEFAULT_VIEWPORT_SIZE,
 } from "@webreel/core";
 import type { VideoConfig, Step, ElementTarget } from "./types.js";
@@ -533,7 +527,7 @@ export async function runVideo(
         const rawDir = resolve(configDir, ".webreel", "raw");
         mkdirSync(rawDir, { recursive: true });
         const rawVideoPath = resolve(rawDir, `${config.name}.mp4`);
-        renameSync(cleanVideoPath, rawVideoPath);
+        moveFileSync(cleanVideoPath, rawVideoPath);
 
         ctx.setMode("preview");
         ctx.setTimeline(null);
