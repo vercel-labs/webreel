@@ -216,6 +216,81 @@
       },
       "additionalProperties": false
     },
+    "autoZoom": {
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "Enable autozoom with default settings."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Turn autozoom on or off without removing the config object."
+            },
+            "approachS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.5,
+              "description": "Seconds spent zooming in from full frame to the target."
+            },
+            "settleBeforeS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.15,
+              "description": "Seconds the camera sits on the target before the action fires."
+            },
+            "holdAfterS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.3,
+              "description": "Seconds the camera holds after the last action in a session."
+            },
+            "releaseS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.5,
+              "description": "Seconds spent zooming out from the target back to full frame."
+            },
+            "paddingRatio": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.3,
+              "description": "Fraction of the target bounding box added as padding around it."
+            },
+            "minZoomRatio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.6,
+              "description": "The crop is never smaller than this fraction of the viewport."
+            },
+            "skipZoomRatio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.75,
+              "description": "Skip zooming when the computed crop would be this fraction of the viewport or larger."
+            },
+            "sessionGapS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 4,
+              "description": "Actions within this many seconds share one zoom session; the camera pans between them instead of zooming out."
+            },
+            "minPanS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.8,
+              "description": "Skip panning to an intermediate target when the pan would be shorter than this many seconds."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "video": {
       "type": "object",
       "required": ["url", "steps"],
@@ -296,6 +371,10 @@
           "type": "number",
           "minimum": 0,
           "description": "Milliseconds the cursor pauses after reaching its target before clicking. Overrides the top-level clickDwell."
+        },
+        "autoZoom": {
+          "$ref": "#/$defs/autoZoom",
+          "description": "Cinematically zoom into each action during compositing. Set true for defaults or an object to tune timing and thresholds."
         },
         "steps": {
           "type": "array",

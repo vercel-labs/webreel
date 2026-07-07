@@ -42,3 +42,17 @@ export { compose, type ComposeOptions } from "./compositor.js";
 export { ensureFfmpeg, FFMPEG_CACHE_DIR } from "./ffmpeg.js";
 export { extractThumbnail, type SfxConfig } from "./media.js";
 export { moveFileSync } from "./fs.js";
+export {
+  buildAutoZoomFilter,
+  computeCropForEvent,
+  generateZoomKeyframes,
+  unionBboxes,
+  type AutoZoomConfig,
+  type ZoomEvent,
+  type ZoomKeyframe,
+} from "./autozoom.js";
+export {
+  installRevealObserver,
+  collectReveals,
+  type RevealObserverHandle,
+} from "./revealObserver.js";

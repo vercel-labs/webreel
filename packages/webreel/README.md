@@ -177,6 +177,7 @@ Raw video and timeline data are saved in `.webreel/raw/` and `.webreel/timelines
 | `theme`        | -             | Overlay theme (`cursor: { image, size, hotspot }`, `hud`) |
 | `include`      | -             | Array of JSON file paths whose steps are prepended        |
 | `defaultDelay` | -             | Default delay (ms) after each step                        |
+| `autoZoom`     | `false`       | Cinematic zoom into each action (bool or object)          |
 
 ### Actions
 

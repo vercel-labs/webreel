@@ -213,6 +213,7 @@ All steps (except `pause`) accept an optional `delay` field (ms to wait after th
 | `include`      | inherited     | Array of paths to JSON files whose steps are prepended |
 | `theme`        | inherited     | Cursor and HUD overlay customization                   |
 | `defaultDelay` | inherited     | Default delay (ms) after each step                     |
+| `autoZoom`     | `false`       | Cinematic zoom into each action (bool or object)       |
 
 ## Development
 

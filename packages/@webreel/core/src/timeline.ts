@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import type { Point, SoundEvent } from "./types.js";
+import type { ZoomEvent } from "./autozoom.js";
 import {
   TARGET_FPS,
   DEFAULT_CURSOR_SVG,
@@ -45,6 +46,7 @@ export interface TimelineData {
   frames: FrameData[];
   events: SoundEvent[];
   steps: TimelineStep[];
+  zoomEvents?: ZoomEvent[];
 }
 
 export interface TimelineStep {
@@ -70,6 +72,7 @@ export class InteractionTimeline {
   private steps: TimelineStep[] = [];
   private frameCount = 0;
   private tickResolvers: Array<() => void> = [];
+  private pathCompleteResolvers: Array<() => void> = [];
   private released = false;
 
   private width: number;
@@ -168,13 +171,35 @@ export class InteractionTimeline {
     });
   }
 
+  // Resolves when the current cursorPath is fully consumed by the capture
+  // loop. If no path is active (or the timeline has been released), resolves
+  // immediately. Lets callers fire the next action exactly when the cursor
+  // arrives at its target, independent of capture rate or hardware speed.
+  waitForPathComplete(): Promise<void> {
+    if (this.released || this.cursorPath === null) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.pathCompleteResolvers.push(resolve);
+    });
+  }
+
+  private maybeResolvePathComplete(): void {
+    if (this.cursorPath !== null || this.pathCompleteResolvers.length === 0) return;
+    const resolvers = this.pathCompleteResolvers;
+    this.pathCompleteResolvers = [];
+    for (const resolve of resolvers) resolve();
+  }
+
   // Once the capture loop stops ticking, pending and future waiters must
-  // resolve immediately or callers like typeText would hang forever.
+  // resolve immediately or callers like typeText (tick waiters) and
+  // animateMoveTo (path-complete waiters) would hang forever.
   releaseWaiters(): void {
     this.released = true;
     const resolvers = this.tickResolvers;
     this.tickResolvers = [];
     for (const resolve of resolvers) resolve();
+    const pathResolvers = this.pathCompleteResolvers;
+    this.pathCompleteResolvers = [];
+    for (const resolve of pathResolvers) resolve();
   }
 
   tick(): void {
@@ -192,6 +217,8 @@ export class InteractionTimeline {
     const resolvers = this.tickResolvers;
     this.tickResolvers = [];
     for (const resolve of resolvers) resolve();
+
+    this.maybeResolvePathComplete();
   }
 
   tickDuplicate(): void {

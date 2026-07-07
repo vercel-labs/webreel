@@ -322,6 +322,7 @@ const KNOWN_VIDEO_KEYS = new Set([
   "sfx",
   "defaultDelay",
   "clickDwell",
+  "autoZoom",
   "steps",
 ]);
 
@@ -756,6 +757,76 @@ function validateSfx(sfx: unknown, prefix: string): ValidationError[] {
   return errors;
 }
 
+const KNOWN_AUTOZOOM_KEYS = new Set([
+  "enabled",
+  "approachS",
+  "settleBeforeS",
+  "holdAfterS",
+  "releaseS",
+  "paddingRatio",
+  "minZoomRatio",
+  "skipZoomRatio",
+  "sessionGapS",
+  "minPanS",
+]);
+
+const AUTOZOOM_NONNEGATIVE_KEYS = [
+  "approachS",
+  "settleBeforeS",
+  "holdAfterS",
+  "releaseS",
+  "paddingRatio",
+  "sessionGapS",
+  "minPanS",
+] as const;
+
+const AUTOZOOM_RATIO_KEYS = ["minZoomRatio", "skipZoomRatio"] as const;
+
+function validateAutoZoom(autoZoom: unknown, prefix: string): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (typeof autoZoom === "boolean") return errors;
+  if (typeof autoZoom !== "object" || autoZoom === null) {
+    errors.push({
+      path: prefix,
+      message: "Must be a boolean or an autozoom config object",
+    });
+    return errors;
+  }
+
+  const a = autoZoom as Record<string, unknown>;
+
+  errors.push(...checkUnknownKeys(a, KNOWN_AUTOZOOM_KEYS, prefix));
+
+  if (a.enabled !== undefined && typeof a.enabled !== "boolean") {
+    errors.push({ path: `${prefix}.enabled`, message: "Must be a boolean" });
+  }
+
+  for (const key of AUTOZOOM_NONNEGATIVE_KEYS) {
+    const value = a[key];
+    if (value !== undefined && (!Number.isFinite(value) || (value as number) < 0)) {
+      errors.push({
+        path: `${prefix}.${key}`,
+        message: "Must be a non-negative number",
+      });
+    }
+  }
+
+  for (const key of AUTOZOOM_RATIO_KEYS) {
+    const value = a[key];
+    if (
+      value !== undefined &&
+      (!Number.isFinite(value) || (value as number) < 0 || (value as number) > 1)
+    ) {
+      errors.push({
+        path: `${prefix}.${key}`,
+        message: "Must be a number between 0 and 1",
+      });
+    }
+  }
+
+  return errors;
+}
+
 function validateTheme(theme: unknown, prefix: string): ValidationError[] {
   const errors: ValidationError[] = [];
   if (typeof theme !== "object" || theme === null) {
@@ -1058,6 +1129,10 @@ export function validateWebreelConfig(
 
     if (d.sfx !== undefined) {
       errors.push(...validateSfx(d.sfx, `${prefix}.sfx`));
+    }
+
+    if (d.autoZoom !== undefined) {
+      errors.push(...validateAutoZoom(d.autoZoom, `${prefix}.autoZoom`));
     }
 
     if (!Array.isArray(d.steps)) {

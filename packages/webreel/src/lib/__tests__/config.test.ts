@@ -343,6 +343,83 @@ describe("include validation", () => {
   });
 });
 
+describe("autoZoom validation", () => {
+  function wrapAutoZoom(autoZoom: unknown) {
+    return { videos: { x: { url: "u", steps: [], autoZoom } } };
+  }
+
+  it("accepts autoZoom booleans", () => {
+    expect(validateWebreelConfig(wrapAutoZoom(true))).toEqual([]);
+    expect(validateWebreelConfig(wrapAutoZoom(false))).toEqual([]);
+  });
+
+  it("accepts a full autoZoom config object", () => {
+    const errors = validateWebreelConfig(
+      wrapAutoZoom({
+        enabled: true,
+        approachS: 0.5,
+        settleBeforeS: 0.15,
+        holdAfterS: 0.3,
+        releaseS: 0.5,
+        paddingRatio: 0.3,
+        minZoomRatio: 0.6,
+        skipZoomRatio: 0.75,
+        sessionGapS: 4.0,
+        minPanS: 0.8,
+      }),
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects autoZoom values that are neither boolean nor object", () => {
+    const errors = validateWebreelConfig(wrapAutoZoom("yes"));
+    expect(errors).toContainEqual(expect.objectContaining({ path: "videos.x.autoZoom" }));
+  });
+
+  it("rejects non-boolean enabled", () => {
+    const errors = validateWebreelConfig(wrapAutoZoom({ enabled: "yes" }));
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.autoZoom.enabled" }),
+    );
+  });
+
+  it("rejects negative timing values", () => {
+    const errors = validateWebreelConfig(wrapAutoZoom({ approachS: -1 }));
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.autoZoom.approachS" }),
+    );
+  });
+
+  it("rejects non-numeric paddingRatio", () => {
+    const errors = validateWebreelConfig(wrapAutoZoom({ paddingRatio: "big" }));
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.autoZoom.paddingRatio" }),
+    );
+  });
+
+  it("rejects ratios outside 0 to 1", () => {
+    const errors = validateWebreelConfig(
+      wrapAutoZoom({ minZoomRatio: 1.5, skipZoomRatio: -0.2 }),
+    );
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.autoZoom.minZoomRatio" }),
+    );
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.autoZoom.skipZoomRatio" }),
+    );
+  });
+
+  it("detects unknown autoZoom properties with suggestions", () => {
+    const errors = validateWebreelConfig(wrapAutoZoom({ paddingRato: 0.3 }));
+    expect(errors).toContainEqual(
+      expect.objectContaining({
+        path: "videos.x.autoZoom.paddingRato",
+        message: expect.stringContaining("paddingRatio"),
+      }),
+    );
+  });
+});
+
 describe("validateWebreelConfig", () => {
   it("accepts a valid multi-video config", () => {
     const errors = validateWebreelConfig({

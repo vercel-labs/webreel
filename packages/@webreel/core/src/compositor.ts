@@ -21,6 +21,7 @@ interface OverlayContext {
 export interface ComposeOptions {
   sfx?: SfxConfig;
   crf?: number;
+  zoomFilter?: string;
 }
 
 export async function compose(
@@ -32,6 +33,7 @@ export async function compose(
   const ffmpegPath = await ensureFfmpeg();
   const sfx = options?.sfx;
   const crf = options?.crf ?? 18;
+  const zoomFilter = options?.zoomFilter;
 
   const zoom = timelineData.zoom ?? 1;
   const cursorPng = await renderCursorPng(
@@ -41,58 +43,128 @@ export async function compose(
   );
 
   const ext = extname(outputPath).toLowerCase();
+  const { width, fps } = timelineData;
 
-  if (ext === ".gif") {
-    const gifConfig = buildGifConfig(timelineData.width, outputPath);
-    await compositeFrames(
-      ffmpegPath,
-      cleanVideoPath,
-      timelineData,
-      cursorPng,
-      zoom,
-      gifConfig,
-    );
+  if (!zoomFilter) {
+    if (ext === ".gif") {
+      const gifConfig = buildGifConfig(width, outputPath);
+      await compositeFrames(
+        ffmpegPath,
+        cleanVideoPath,
+        timelineData,
+        cursorPng,
+        zoom,
+        gifConfig,
+        "both",
+      );
+      return;
+    }
+
+    const workDir = resolve(homedir(), ".webreel");
+    mkdirSync(workDir, { recursive: true });
+    const tempComposed = resolve(workDir, `_composed_${Date.now()}.mp4`);
+
+    try {
+      const mp4Config = buildMp4Config(fps, crf, tempComposed);
+      await compositeFrames(
+        ffmpegPath,
+        cleanVideoPath,
+        timelineData,
+        cursorPng,
+        zoom,
+        mp4Config,
+        "both",
+      );
+      finalizeComposed(ffmpegPath, tempComposed, outputPath, timelineData, sfx);
+    } finally {
+      rmSync(tempComposed, { force: true });
+    }
     return;
   }
 
+  // Autozoom pipeline layering:
+  //   Stage A overlays cursor-only (not HUD) on the raw video. Stage B
+  //   applies zoompan on the cursor-overlaid intermediate. Stage C overlays
+  //   HUD on the zoomed frame. HUD stays at the final viewport coordinates
+  //   regardless of how the camera crops/scales, so captions never get
+  //   cropped by zoom.
+  //
+  // Why three stages instead of one? (1) zoompan + image2pipe in the same
+  // filter_complex deadlocks when the pipe reader can't drain fast enough.
+  // (2) HUD on top of the zoomed frame must run after zoompan or it gets
+  // cropped out of the camera window.
   const workDir = resolve(homedir(), ".webreel");
   mkdirSync(workDir, { recursive: true });
+  const cursorStagePath = resolve(workDir, `_cursor_${Date.now()}.mp4`);
+  const zoomStagePath = resolve(workDir, `_zoom_${Date.now()}.mp4`);
   const tempComposed = resolve(workDir, `_composed_${Date.now()}.mp4`);
 
   try {
-    const mp4Config = buildMp4Config(timelineData.fps, crf, tempComposed);
     await compositeFrames(
       ffmpegPath,
       cleanVideoPath,
       timelineData,
       cursorPng,
       zoom,
-      mp4Config,
+      buildMp4Config(fps, crf, cursorStagePath),
+      "cursor",
     );
+    await applyZoomPass(ffmpegPath, cursorStagePath, zoomFilter, zoomStagePath, crf, fps);
 
-    const durationSec = timelineData.frames.length / timelineData.fps;
-
-    if (ext === ".webm") {
-      finalizeWebm(
+    if (ext === ".gif") {
+      await compositeFrames(
         ffmpegPath,
-        tempComposed,
-        outputPath,
-        timelineData.events,
-        durationSec,
-        sfx,
+        zoomStagePath,
+        timelineData,
+        cursorPng,
+        zoom,
+        buildGifConfig(width, outputPath),
+        "hud",
       );
-    } else {
-      finalizeMp4(
-        ffmpegPath,
-        tempComposed,
-        outputPath,
-        timelineData.events,
-        durationSec,
-        { remux: true, sfx },
-      );
+      return;
     }
+
+    await compositeFrames(
+      ffmpegPath,
+      zoomStagePath,
+      timelineData,
+      cursorPng,
+      zoom,
+      buildMp4Config(fps, crf, tempComposed),
+      "hud",
+    );
+    finalizeComposed(ffmpegPath, tempComposed, outputPath, timelineData, sfx);
   } finally {
+    rmSync(cursorStagePath, { force: true });
+    rmSync(zoomStagePath, { force: true });
     rmSync(tempComposed, { force: true });
+  }
+}
+
+function finalizeComposed(
+  ffmpegPath: string,
+  tempComposed: string,
+  outputPath: string,
+  timelineData: TimelineData,
+  sfx: SfxConfig | undefined,
+): void {
+  const ext = extname(outputPath).toLowerCase();
+  const durationSec = timelineData.frames.length / timelineData.fps;
+
+  if (ext === ".webm") {
+    finalizeWebm(
+      ffmpegPath,
+      tempComposed,
+      outputPath,
+      timelineData.events,
+      durationSec,
+      sfx,
+    );
+  } else {
+    finalizeMp4(ffmpegPath, tempComposed, outputPath, timelineData.events, durationSec, {
+      remux: true,
+      sfx,
+    });
   }
 }
 
@@ -162,11 +234,12 @@ function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConf
 
 async function compositeFrames(
   ffmpegPath: string,
-  cleanVideoPath: string,
+  inputVideoPath: string,
   timeline: TimelineData,
   cursorPng: Buffer,
   zoom: number,
   config: CompositorFfmpegConfig,
+  layer: OverlayLayer,
 ): Promise<void> {
   const { width, height, fps } = timeline;
 
@@ -175,7 +248,7 @@ async function compositeFrames(
     [
       "-y",
       "-i",
-      cleanVideoPath,
+      inputVideoPath,
       "-f",
       "image2pipe",
       "-framerate",
@@ -246,7 +319,7 @@ async function compositeFrames(
         const stderr = Buffer.concat(stderrChunks).toString().slice(-2000);
         rejectAll(
           new Error(
-            `Compositor ffmpeg exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
+            `Compositor ffmpeg (layer=${layer}) exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
           ),
         );
       }
@@ -339,6 +412,7 @@ async function compositeFrames(
       ctx,
       overlayCache,
       hudCache,
+      layer,
     );
 
     if (state.abortError) break;
@@ -363,6 +437,67 @@ async function compositeFrames(
   await ffmpegDone;
 }
 
+async function applyZoomPass(
+  ffmpegPath: string,
+  inputPath: string,
+  zoomFilter: string,
+  outputPath: string,
+  crf: number,
+  fps: number,
+): Promise<void> {
+  const ffmpeg = spawn(
+    ffmpegPath,
+    [
+      "-y",
+      "-i",
+      inputPath,
+      "-vf",
+      zoomFilter,
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      String(crf),
+      "-pix_fmt",
+      "yuv420p",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      "-colorspace",
+      "bt709",
+      "-movflags",
+      "+faststart",
+      "-r",
+      String(fps),
+      outputPath,
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+
+  const stderrChunks: Buffer[] = [];
+  ffmpeg.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+  await new Promise<void>((resolveAll, rejectAll) => {
+    ffmpeg.on("close", (code) => {
+      if (code === 0) {
+        resolveAll();
+      } else {
+        const stderr = Buffer.concat(stderrChunks).toString().slice(-2000);
+        rejectAll(
+          new Error(
+            `Zoom-pass ffmpeg exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
+          ),
+        );
+      }
+    });
+    ffmpeg.on("error", rejectAll);
+  });
+}
+
+type OverlayLayer = "both" | "cursor" | "hud";
+
 async function renderOverlayFrame(
   frame: TimelineData["frames"][number],
   width: number,
@@ -370,6 +505,7 @@ async function renderOverlayFrame(
   ctx: OverlayContext,
   cache: Map<string, Buffer>,
   hudCache: Map<string, sharp.OverlayOptions>,
+  layer: OverlayLayer,
 ): Promise<Buffer> {
   // Whole-pixel rounding is intentional: sub-pixel precision defeats the
   // overlay cache during cursor dwell/pause (float jitter creates unique keys).
@@ -379,7 +515,7 @@ async function renderOverlayFrame(
   const cy = Math.round(frame.cursor.y * ctx.zoom);
   const scale = frame.cursor.scale;
   const hudKey = frame.hud ? frame.hud.labels.join("|") : "";
-  const cacheKey = `${cx},${cy},${scale},${hudKey}`;
+  const cacheKey = `${layer}:${cx},${cy},${scale},${hudKey}`;
 
   const cached = cache.get(cacheKey);
   if (cached) return cached;
@@ -391,7 +527,10 @@ async function renderOverlayFrame(
   const cursorVisible =
     icx >= -ctx.cursorWidth && icx < width && icy >= -ctx.cursorHeight && icy < height;
 
-  if (cursorVisible) {
+  const wantCursor = layer !== "hud";
+  const wantHud = layer !== "cursor";
+
+  if (wantCursor && cursorVisible) {
     const cursorImg = scale !== 1 ? await ctx.getScaledCursor(scale) : ctx.cursorPng;
     const left = Math.max(0, icx);
     const top = Math.max(0, icy);
@@ -401,7 +540,7 @@ async function renderOverlayFrame(
     }
   }
 
-  if (frame.hud && frame.hud.labels.length > 0) {
+  if (wantHud && frame.hud && frame.hud.labels.length > 0) {
     const hudOverlay = await renderHudOverlay(
       frame.hud.labels,
       width,
@@ -485,7 +624,13 @@ async function renderHudOverlay(
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-  const svgOverlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${hudWidth}" height="${hudHeight}">
+  // Clamp the rendered HUD to the viewport (with margins) via viewBox so
+  // long label sets scale down instead of overflowing the frame.
+  const margin = Math.round(48 * zoom);
+  const maxHudWidth = Math.max(100, viewportWidth - margin * 2);
+  const renderedHudWidth = Math.min(hudWidth, maxHudWidth);
+
+  const svgOverlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderedHudWidth}" height="${hudHeight}" viewBox="0 0 ${hudWidth} ${hudHeight}" preserveAspectRatio="xMidYMid meet">
       <rect x="0" y="0" width="${hudWidth}" height="${hudHeight}" rx="${borderRadius}" ry="${borderRadius}" fill="${escAttr(hudConfig.background)}" />
       <text x="${textX}" y="${textY}" text-anchor="middle"
         font-family="${escAttr(hudConfig.fontFamily)}" font-size="${fontSize}" font-weight="500"
@@ -493,8 +638,7 @@ async function renderHudOverlay(
     </svg>`;
 
   const hudPng = await sharp(Buffer.from(svgOverlay)).png().toBuffer();
-  const left = Math.round((viewportWidth - hudWidth) / 2);
-  const margin = Math.round(48 * zoom);
+  const left = Math.round((viewportWidth - renderedHudWidth) / 2);
   const top = hudConfig.position === "top" ? margin : viewportHeight - hudHeight - margin;
 
   const result: sharp.OverlayOptions = { input: hudPng, left, top };

@@ -266,6 +266,15 @@ Each key in the `videos` object is the video name (used as the default output fi
     </tr>
     <tr>
       <td>
+        <code>autoZoom</code>
+      </td>
+      <td>
+        <code>false</code>
+      </td>
+      <td>Cinematic zoom into each action, either a boolean or a config object</td>
+    </tr>
+    <tr>
+      <td>
         <code>steps</code>
       </td>
       <td>required</td>
@@ -624,6 +633,148 @@ Output quality on a scale of 1-100, where 100 is the highest quality and largest
   }
 }
 ```
+
+## autoZoom
+
+Cinematically zoom into each action so small UI elements stay readable. The camera eases in before a `click`, `type`, `hover`, `moveTo`, `drag`, or `select` step fires, holds through the interaction, then releases back to the full frame. Zooming happens during the existing compositing pass, so it adds no extra recording time. Click targets automatically expand to include UI revealed by the click, such as dropdown menus and modals.
+
+Enable with defaults:
+
+```json
+{
+  "videos": {
+    "hero": {
+      "url": "https://example.com",
+      "autoZoom": true,
+      "steps": []
+    }
+  }
+}
+```
+
+Or pass an object to tune the behavior:
+
+```json
+{
+  "autoZoom": {
+    "enabled": true,
+    "approachS": 0.5,
+    "holdAfterS": 0.3,
+    "paddingRatio": 0.3,
+    "sessionGapS": 4.0
+  }
+}
+```
+
+<table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>enabled</code>
+      </td>
+      <td>
+        <code>true</code>
+      </td>
+      <td>Turn autozoom on or off without removing the config object</td>
+    </tr>
+    <tr>
+      <td>
+        <code>approachS</code>
+      </td>
+      <td>
+        <code>0.5</code>
+      </td>
+      <td>Seconds spent zooming in from full frame to the target</td>
+    </tr>
+    <tr>
+      <td>
+        <code>settleBeforeS</code>
+      </td>
+      <td>
+        <code>0.15</code>
+      </td>
+      <td>Seconds the camera sits on the target before the action fires</td>
+    </tr>
+    <tr>
+      <td>
+        <code>holdAfterS</code>
+      </td>
+      <td>
+        <code>0.3</code>
+      </td>
+      <td>Seconds the camera holds after the last action in a session</td>
+    </tr>
+    <tr>
+      <td>
+        <code>releaseS</code>
+      </td>
+      <td>
+        <code>0.5</code>
+      </td>
+      <td>Seconds spent zooming back out to the full frame</td>
+    </tr>
+    <tr>
+      <td>
+        <code>paddingRatio</code>
+      </td>
+      <td>
+        <code>0.3</code>
+      </td>
+      <td>Fraction of the target bounding box added as padding around it</td>
+    </tr>
+    <tr>
+      <td>
+        <code>minZoomRatio</code>
+      </td>
+      <td>
+        <code>0.6</code>
+      </td>
+      <td>The crop is never smaller than this fraction of the viewport</td>
+    </tr>
+    <tr>
+      <td>
+        <code>skipZoomRatio</code>
+      </td>
+      <td>
+        <code>0.75</code>
+      </td>
+      <td>Skip zooming when the crop would be this fraction of the viewport or larger</td>
+    </tr>
+    <tr>
+      <td>
+        <code>sessionGapS</code>
+      </td>
+      <td>
+        <code>4.0</code>
+      </td>
+      <td>
+        Actions within this many seconds share one zoom session and the camera pans
+        between them
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>minPanS</code>
+      </td>
+      <td>
+        <code>0.8</code>
+      </td>
+      <td>
+        Skip panning to an intermediate target when the pan would be shorter than this
+        many seconds
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+Clicks that trigger a page navigation are skipped, since the page content changes unpredictably. Targets that would produce a near-full-frame crop are also skipped to avoid imperceptible zooms. Autozoom pairs well with the static `zoom` field: `zoom` upscales the captured viewport for readability, and `autoZoom` then zooms further into each action.
 
 ## sfx
 

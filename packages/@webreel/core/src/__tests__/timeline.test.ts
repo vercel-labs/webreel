@@ -149,4 +149,49 @@ describe("InteractionTimeline", () => {
     tl.releaseWaiters();
     await expect(tl.waitForNextTick()).resolves.toBeUndefined();
   });
+
+  it("waitForPathComplete resolves immediately when no path is active", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    await expect(tl.waitForPathComplete()).resolves.toBeUndefined();
+  });
+
+  it("waitForPathComplete resolves once ticks consume the path", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    tl.setCursorPath([
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ]);
+    let resolved = false;
+    const wait = tl.waitForPathComplete().then(() => {
+      resolved = true;
+    });
+    tl.tick();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    tl.tick();
+    await wait;
+    expect(resolved).toBe(true);
+  });
+
+  it("releaseWaiters resolves pending path-complete waiters", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    tl.setCursorPath([
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ]);
+    const wait = tl.waitForPathComplete();
+    tl.releaseWaiters();
+    await expect(wait).resolves.toBeUndefined();
+  });
+
+  it("waitForPathComplete resolves immediately after release even mid-path", async () => {
+    const tl = new InteractionTimeline(1080, 1080);
+    tl.setCursorPath([
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ]);
+    tl.tick();
+    tl.releaseWaiters();
+    await expect(tl.waitForPathComplete()).resolves.toBeUndefined();
+  });
 });
