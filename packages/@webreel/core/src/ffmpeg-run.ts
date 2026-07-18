@@ -31,6 +31,37 @@ export function runFfmpegSync(
   }
 }
 
+/**
+ * Run ffmpeg asynchronously to completion for file-in/file-out invocations
+ * that don't pipe stdin (e.g. a single -i/-vf/-o pass). Resolves on a clean
+ * (code 0) close; rejects with a `${stage}`-named, stderr-tailed Error
+ * otherwise.
+ */
+export function runFfmpegAsync(
+  ffmpegPath: string,
+  args: string[],
+  stage = "ffmpeg",
+): Promise<void> {
+  const proc = spawn(ffmpegPath, args, { stdio: ["ignore", "pipe", "pipe"] });
+
+  const stderrChunks: Buffer[] = [];
+  proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+  return new Promise<void>((resolveAll, rejectAll) => {
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolveAll();
+        return;
+      }
+      const stderr = tailOf(Buffer.concat(stderrChunks));
+      rejectAll(
+        new Error(`${stage} exited with code ${code}${stderr ? `:\n${stderr}` : ""}`),
+      );
+    });
+    proc.on("error", rejectAll);
+  });
+}
+
 export interface FfmpegStreamingOptions {
   /**
    * Fired when stdin emits an 'error' event that isn't a benign EPIPE after

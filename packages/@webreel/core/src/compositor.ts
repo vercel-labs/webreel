@@ -6,6 +6,7 @@ import sharp from "sharp";
 import type { TimelineData } from "./timeline.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
 import { buildGifFilter, finalizeMp4, finalizeWebm, type SfxConfig } from "./media.js";
+import { runFfmpegAsync } from "./ffmpeg-run.js";
 
 interface OverlayContext {
   cursorPng: Buffer;
@@ -217,7 +218,10 @@ export function buildMp4Config(
   };
 }
 
-export function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConfig {
+export function buildGifConfig(
+  width: number,
+  outputPath: string,
+): CompositorFfmpegConfig {
   return {
     filterComplex: `[0][1]overlay=0:0:shortest=1,${buildGifFilter(width)}`,
     outputArgs: ["-loop", "0", outputPath],
@@ -486,7 +490,7 @@ async function applyZoomPass(
   crf: number,
   fps: number,
 ): Promise<void> {
-  const ffmpeg = spawn(
+  await runFfmpegAsync(
     ffmpegPath,
     [
       "-y",
@@ -514,27 +518,8 @@ async function applyZoomPass(
       String(fps),
       outputPath,
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    "Zoom-pass ffmpeg",
   );
-
-  const stderrChunks: Buffer[] = [];
-  ffmpeg.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-
-  await new Promise<void>((resolveAll, rejectAll) => {
-    ffmpeg.on("close", (code) => {
-      if (code === 0) {
-        resolveAll();
-      } else {
-        const stderr = Buffer.concat(stderrChunks).toString().slice(-2000);
-        rejectAll(
-          new Error(
-            `Zoom-pass ffmpeg exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
-          ),
-        );
-      }
-    });
-    ffmpeg.on("error", rejectAll);
-  });
 }
 
 type OverlayLayer = "both" | "cursor" | "hud";
