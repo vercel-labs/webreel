@@ -53,6 +53,7 @@
   "devDependencies": {
     "@types/chrome-remote-interface": "^0.33.0",
     "@types/node": "25.3.0",
+    "@vitest/coverage-v8": "4.0.18",
     "typescript": "5.9.3"
   }
 }

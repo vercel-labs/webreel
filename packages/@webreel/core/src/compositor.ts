@@ -181,12 +181,12 @@ async function renderCursorPng(
   return sharp(Buffer.from(svgWithSize)).png().toBuffer();
 }
 
-interface CompositorFfmpegConfig {
+export interface CompositorFfmpegConfig {
   filterComplex: string;
   outputArgs: string[];
 }
 
-function buildMp4Config(
+export function buildMp4Config(
   fps: number,
   crf: number,
   outputPath: string,
@@ -217,7 +217,7 @@ function buildMp4Config(
   };
 }
 
-function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConfig {
+export function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConfig {
   return {
     filterComplex: `[0][1]overlay=0:0:shortest=1,${buildGifFilter(width)}`,
     outputArgs: ["-loop", "0", outputPath],

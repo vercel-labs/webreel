@@ -9,6 +9,8 @@ import {
   modKeyInfo,
   resolveCommands,
   typeText,
+  clickAt,
+  pressKey,
   KEY_CODES,
   CHAR_CODES,
   SHORTCUT_COMMANDS,
@@ -384,5 +386,130 @@ describe("typeText", () => {
     await typeText(ctx, client, "a", 0);
     expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(3);
     expect(client.Input.insertText).not.toHaveBeenCalled();
+  });
+});
+
+// characterization: documents current dispatch behavior of clickAt/pressKey,
+// not a specification of desired behavior.
+describe("clickAt", () => {
+  function createMockClient() {
+    return {
+      Input: {
+        dispatchMouseEvent: vi.fn().mockResolvedValue(undefined),
+        dispatchKeyEvent: vi.fn().mockResolvedValue(undefined),
+      },
+      Runtime: {
+        evaluate: vi.fn().mockResolvedValue({ result: {} }),
+      },
+    } as unknown as CDPClient & {
+      Input: {
+        dispatchMouseEvent: ReturnType<typeof vi.fn>;
+        dispatchKeyEvent: ReturnType<typeof vi.fn>;
+      };
+      Runtime: { evaluate: ReturnType<typeof vi.fn> };
+    };
+  }
+
+  it("dispatches a pressed/released mouse event pair at the resolved coordinates", async () => {
+    const ctx = new RecordingContext();
+    // Cursor already at the click target: animateMoveTo's dist < 1 fast path
+    // skips its animation wait, keeping this test fast and deterministic.
+    ctx.setCursorPosition(50, 60);
+    const client = createMockClient();
+
+    await clickAt(ctx, client, 50, 60);
+
+    const mouseCalls = client.Input.dispatchMouseEvent.mock.calls.map((c) => c[0]);
+    const pressed = mouseCalls.find((c) => c.type === "mousePressed");
+    const released = mouseCalls.find((c) => c.type === "mouseReleased");
+
+    expect(pressed).toMatchObject({
+      type: "mousePressed",
+      x: 50,
+      y: 60,
+      button: "left",
+      clickCount: 1,
+    });
+    expect(released).toMatchObject({
+      type: "mouseReleased",
+      x: 50,
+      y: 60,
+      button: "left",
+      clickCount: 1,
+    });
+    // pressed must precede released.
+    expect(mouseCalls.indexOf(pressed)).toBeLessThan(mouseCalls.indexOf(released));
+  });
+
+  it("dispatches modifier keyDown/keyUp pairs around the click when modifiers are given", async () => {
+    const ctx = new RecordingContext();
+    ctx.setCursorPosition(10, 10);
+    const client = createMockClient();
+
+    await clickAt(ctx, client, 10, 10, ["shift"]);
+
+    const keyCalls = client.Input.dispatchKeyEvent.mock.calls.map((c) => c[0]);
+    expect(keyCalls).toContainEqual(
+      expect.objectContaining({ type: "keyDown", key: "Shift", code: "ShiftLeft" }),
+    );
+    expect(keyCalls).toContainEqual(
+      expect.objectContaining({ type: "keyUp", key: "Shift", code: "ShiftLeft" }),
+    );
+  });
+});
+
+describe("pressKey", () => {
+  function createMockClient() {
+    return {
+      Input: {
+        dispatchKeyEvent: vi.fn().mockResolvedValue(undefined),
+      },
+      Runtime: {
+        evaluate: vi.fn().mockResolvedValue({ result: {} }),
+      },
+    } as unknown as CDPClient & {
+      Input: { dispatchKeyEvent: ReturnType<typeof vi.fn> };
+      Runtime: { evaluate: ReturnType<typeof vi.fn> };
+    };
+  }
+
+  it("dispatches a keyDown followed by a keyUp for the resolved key", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+
+    await pressKey(ctx, client, "Enter");
+
+    expect(client.Input.dispatchKeyEvent).toHaveBeenCalledTimes(2);
+    expect(client.Input.dispatchKeyEvent).toHaveBeenNthCalledWith(1, {
+      type: "keyDown",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      modifiers: 0,
+      commands: undefined,
+    });
+    expect(client.Input.dispatchKeyEvent).toHaveBeenNthCalledWith(2, {
+      type: "keyUp",
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      modifiers: 0,
+    });
+  });
+
+  it("resolves a known shortcut to its command list", async () => {
+    const ctx = new RecordingContext();
+    const client = createMockClient();
+
+    await pressKey(ctx, client, "ctrl+c");
+
+    expect(client.Input.dispatchKeyEvent).toHaveBeenNthCalledWith(1, {
+      type: "keyDown",
+      key: "c",
+      code: "KeyC",
+      windowsVirtualKeyCode: 67,
+      modifiers: 2,
+      commands: ["copy"],
+    });
   });
 });
