@@ -72,6 +72,30 @@ export async function fetchJson(url: string): Promise<unknown> {
   return res.json();
 }
 
+export async function fetchText(url: string): Promise<string> {
+  const res = await withRetry(async () => {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status} fetching ${url}`);
+    return r;
+  }, `Fetch ${url}`);
+  return res.text();
+}
+
+/**
+ * Parses a `sha256sum`-style checksums file (lines of
+ * `<hex digest>  <filename>`, one or two spaces) and returns the digest for
+ * `filename`, or null if not present.
+ */
+export function findSha256ForFile(checksums: string, filename: string): string | null {
+  for (const line of checksums.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
+    if (m && m[2].trim() === filename) return m[1];
+  }
+  return null;
+}
+
 export async function downloadFile(
   url: string,
   destPath: string,
