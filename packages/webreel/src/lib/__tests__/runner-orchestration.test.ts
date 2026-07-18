@@ -20,7 +20,7 @@ const hoisted = vi.hoisted(() => {
     stop = vi.fn().mockResolvedValue(undefined);
     setTimeline = vi.fn();
     getTempVideoPath = vi.fn(() => FakeRecorder.nextTempVideoPath);
-    constructor(..._args: unknown[]) {
+    constructor() {
       FakeRecorder.instances.push(this);
     }
   }
