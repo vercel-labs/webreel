@@ -1,24 +1,11 @@
-import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { moveFileSync } from "./fs.js";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SoundEvent } from "./types.js";
+import { runFfmpegSync } from "./ffmpeg-run.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function runFfmpeg(ffmpegPath: string, args: string[]): void {
-  const result = spawnSync(ffmpegPath, args, {
-    stdio: "pipe",
-    maxBuffer: 50 * 1024 * 1024,
-  });
-  if (result.status !== 0) {
-    const stderr = result.stderr?.toString().slice(-2000) ?? "";
-    throw new Error(
-      `ffmpeg exited with code ${result.status}${stderr ? `:\n${stderr}` : ""}`,
-    );
-  }
-}
 
 const ASSETS_DIR = resolve(__dirname, "..", "assets");
 
@@ -100,16 +87,11 @@ export function finalizeMp4(
 ): void {
   if (events.length === 0 || !options?.sfx) {
     if (options?.remux) {
-      runFfmpeg(ffmpegPath, [
-        "-y",
-        "-i",
-        tempVideo,
-        "-c",
-        "copy",
-        "-movflags",
-        "+faststart",
-        outputPath,
-      ]);
+      runFfmpegSync(
+        ffmpegPath,
+        ["-y", "-i", tempVideo, "-c", "copy", "-movflags", "+faststart", outputPath],
+        "ffmpeg remux",
+      );
     } else {
       moveFileSync(tempVideo, outputPath);
     }
@@ -123,26 +105,30 @@ export function finalizeMp4(
     options.sfx,
   );
 
-  runFfmpeg(ffmpegPath, [
-    "-y",
-    ...inputArgs,
-    "-filter_complex",
-    filterComplex,
-    "-map",
-    "0:v",
-    "-map",
-    "[aout]",
-    "-c:v",
-    "copy",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "128k",
-    "-shortest",
-    "-movflags",
-    "+faststart",
-    outputPath,
-  ]);
+  runFfmpegSync(
+    ffmpegPath,
+    [
+      "-y",
+      ...inputArgs,
+      "-filter_complex",
+      filterComplex,
+      "-map",
+      "0:v",
+      "-map",
+      "[aout]",
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "128k",
+      "-shortest",
+      "-movflags",
+      "+faststart",
+      outputPath,
+    ],
+    "ffmpeg mp4 audio mix",
+  );
 }
 
 export function finalizeWebm(
@@ -155,20 +141,24 @@ export function finalizeWebm(
 ): void {
   const silentWebm = tempVideo + "_silent.webm";
 
-  runFfmpeg(ffmpegPath, [
-    "-y",
-    "-i",
-    tempVideo,
-    "-c:v",
-    "libvpx-vp9",
-    "-crf",
-    "30",
-    "-b:v",
-    "0",
-    "-pix_fmt",
-    "yuv420p",
-    silentWebm,
-  ]);
+  runFfmpegSync(
+    ffmpegPath,
+    [
+      "-y",
+      "-i",
+      tempVideo,
+      "-c:v",
+      "libvpx-vp9",
+      "-crf",
+      "30",
+      "-b:v",
+      "0",
+      "-pix_fmt",
+      "yuv420p",
+      silentWebm,
+    ],
+    "ffmpeg webm encode",
+  );
 
   if (events.length === 0 || !sfx) {
     moveFileSync(silentWebm, outputPath);
@@ -183,24 +173,28 @@ export function finalizeWebm(
       sfx,
     );
 
-    runFfmpeg(ffmpegPath, [
-      "-y",
-      ...inputArgs,
-      "-filter_complex",
-      filterComplex,
-      "-map",
-      "0:v",
-      "-map",
-      "[aout]",
-      "-c:v",
-      "copy",
-      "-c:a",
-      "libopus",
-      "-b:a",
-      "128k",
-      "-shortest",
-      outputPath,
-    ]);
+    runFfmpegSync(
+      ffmpegPath,
+      [
+        "-y",
+        ...inputArgs,
+        "-filter_complex",
+        filterComplex,
+        "-map",
+        "0:v",
+        "-map",
+        "[aout]",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "128k",
+        "-shortest",
+        outputPath,
+      ],
+      "ffmpeg webm audio mix",
+    );
   } finally {
     rmSync(silentWebm, { force: true });
   }
@@ -212,16 +206,11 @@ export function extractThumbnail(
   outputPath: string,
   timeSec: number,
 ): void {
-  runFfmpeg(ffmpegPath, [
-    "-y",
-    "-ss",
-    String(timeSec),
-    "-i",
-    videoPath,
-    "-frames:v",
-    "1",
-    outputPath,
-  ]);
+  runFfmpegSync(
+    ffmpegPath,
+    ["-y", "-ss", String(timeSec), "-i", videoPath, "-frames:v", "1", outputPath],
+    "ffmpeg thumbnail extract",
+  );
 }
 
 export const GIF_FPS = 15;
@@ -243,12 +232,9 @@ export function finalizeGif(
   outputPath: string,
   width: number,
 ): void {
-  runFfmpeg(ffmpegPath, [
-    "-y",
-    "-i",
-    tempVideo,
-    "-vf",
-    buildGifFilter(width),
-    outputPath,
-  ]);
+  runFfmpegSync(
+    ffmpegPath,
+    ["-y", "-i", tempVideo, "-vf", buildGifFilter(width), outputPath],
+    "ffmpeg gif encode",
+  );
 }
