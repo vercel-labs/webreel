@@ -5,7 +5,6 @@ import {
   type CDPClient,
   type BoundingBox,
   type OverlayTheme,
-  type AutoZoomConfig,
   type ZoomEvent,
   RecordingContext,
   connectCDP,
@@ -25,11 +24,7 @@ import {
   captureScreenshot,
   Recorder,
   InteractionTimeline,
-  compose,
-  ensureFfmpeg,
-  extractThumbnail,
   moveFileSync,
-  buildAutoZoomFilter,
   unionBboxes,
   installRevealObserver,
   collectReveals,
@@ -38,6 +33,9 @@ import {
 } from "@webreel/core";
 import type { VideoConfig, Step, ElementTarget } from "./types.js";
 import { registerInterruptCleanup } from "./signals.js";
+import { compositeRecording, normalizeAutoZoom } from "./compositing.js";
+
+export { extractThumbnailIfConfigured, normalizeAutoZoom } from "./compositing.js";
 
 export function formatStep(i: number, step: Step): string {
   const desc = "description" in step && step.description ? `: ${step.description}` : "";
@@ -126,12 +124,6 @@ export function randomPointInBox(
     x: box.x + box.width * (center + Math.random() * spread),
     y: box.y + box.height * (center + Math.random() * spread),
   };
-}
-
-export function normalizeAutoZoom(value: VideoConfig["autoZoom"]): AutoZoomConfig {
-  if (value === true) return { enabled: true };
-  if (value === false || value === undefined) return { enabled: false };
-  return { ...value, enabled: value.enabled ?? true };
 }
 
 async function captureZoomEvent(
@@ -240,18 +232,6 @@ async function captureZoomEvent(
   });
   const url = typeof result.value === "string" ? result.value : undefined;
   return { timeMs, box, url, holdUntilMs };
-}
-
-export async function extractThumbnailIfConfigured(
-  config: Pick<VideoConfig, "thumbnail">,
-  outputPath: string,
-): Promise<void> {
-  if (config.thumbnail?.enabled === false) return;
-  const thumbTime = config.thumbnail?.time ?? 0;
-  const thumbPath = outputPath.replace(/\.[^.]+$/, ".png");
-  const ffmpegPath = await ensureFfmpeg();
-  extractThumbnail(ffmpegPath, outputPath, thumbPath, thumbTime);
-  console.log(`Thumbnail: ${thumbPath}`);
 }
 
 export interface RunVideoOptions {
@@ -700,35 +680,15 @@ export async function runVideo(
         ctx.setTimeline(null);
         mkdirSync(dirname(outputPath), { recursive: true });
         console.log(`Compositing overlays...`);
-        const zoomFilter = autoZoomCfg.enabled
-          ? buildAutoZoomFilter(
-              zoomEvents,
-              { width: timelineData.width, height: timelineData.height },
-              timelineData.zoom ?? 1,
-              timelineData.frames.length / timelineData.fps,
-              timelineData.fps,
-              autoZoomCfg,
-            )
-          : null;
-        if (zoomFilter) {
-          console.log(
-            `Applying autozoom (${zoomEvents.length} event${zoomEvents.length === 1 ? "" : "s"})`,
-          );
-          if (verbose) {
-            for (const e of zoomEvents) {
-              const box = e.box;
-              console.log(
-                `  t=${(e.timeMs / 1000).toFixed(2)}s box=${box.x.toFixed(0)},${box.y.toFixed(0)} ${box.width.toFixed(0)}x${box.height.toFixed(0)}`,
-              );
-            }
-          }
-        }
-        await compose(rawVideoPath, timelineData, outputPath, {
-          sfx: config.sfx,
-          zoomFilter: zoomFilter ?? undefined,
+        await compositeRecording({
+          rawVideoPath,
+          timelineData,
+          outputPath,
+          video: config,
+          zoomEvents,
+          verbose,
         });
       }
-      await extractThumbnailIfConfigured(config, outputPath);
 
       console.log(`Done: ${outputPath}`);
     } else {

@@ -224,6 +224,19 @@ export function extractThumbnail(
   ]);
 }
 
+export const GIF_FPS = 15;
+export const GIF_BAYER_SCALE = 5;
+
+/**
+ * Shared GIF quality filter graph: downsample to GIF_FPS, scale to the
+ * target width with lanczos, then generate a full-stats palette and apply
+ * bayer dithering when quantizing to it. Used both when finalizing a raw GIF
+ * recording directly and when compositing overlays onto a GIF output.
+ */
+export function buildGifFilter(width: number, fps: number = GIF_FPS): string {
+  return `fps=${fps},scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${GIF_BAYER_SCALE}`;
+}
+
 export function finalizeGif(
   ffmpegPath: string,
   tempVideo: string,
@@ -235,7 +248,7 @@ export function finalizeGif(
     "-i",
     tempVideo,
     "-vf",
-    `fps=15,scale=${width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`,
+    buildGifFilter(width),
     outputPath,
   ]);
 }
