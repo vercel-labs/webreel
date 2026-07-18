@@ -100,3 +100,27 @@ describe("Recorder.stop", () => {
     expect(recorder.getTempVideoPath()).toBe("");
   });
 });
+
+describe("Recorder pipe error handling", () => {
+  it("survives ffmpeg dying mid-recording without an uncaught exception", async () => {
+    // Reads a little input then exits nonzero, so later writeFrame() calls
+    // hit a dead pipe (EPIPE) instead of a live ffmpeg process.
+    const dyingShimPath = join(shimDir, "dying-ffmpeg");
+    writeFileSync(dyingShimPath, "#!/bin/sh\nhead -c 100 > /dev/null\nexit 1\n");
+    chmodSync(dyingShimPath, 0o755);
+    ffmpegPathResolver = () => Promise.resolve(dyingShimPath);
+
+    const uncaughtSpy = vi.fn();
+    process.on("uncaughtException", uncaughtSpy);
+
+    try {
+      const recorder = await startedRecorder();
+      // Give the capture loop time to keep writing after the shim exits.
+      await new Promise((r) => setTimeout(r, 100));
+      await recorder.stop();
+      expect(uncaughtSpy).not.toHaveBeenCalled();
+    } finally {
+      process.removeListener("uncaughtException", uncaughtSpy);
+    }
+  });
+});

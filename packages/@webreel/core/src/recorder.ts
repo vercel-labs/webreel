@@ -27,6 +27,7 @@ export class Recorder {
   private tempVideo = "";
   private drainResolve: (() => void) | null = null;
   private droppedFrames = 0;
+  private pipeError: Error | null = null;
   private timeline: InteractionTimeline | null = null;
   private ctx: RecordingContext | null = null;
   private framesDir: string | null = null;
@@ -82,6 +83,7 @@ export class Recorder {
     this.outputPath = outputPath;
     this.frameCount = 0;
     this.droppedFrames = 0;
+    this.pipeError = null;
     this.running = true;
     this.events = [];
     this.ctx = ctx ?? null;
@@ -137,6 +139,13 @@ export class Recorder {
     const stdin = this.ffmpegProcess.stdin;
     if (!stdin) throw new Error("ffmpeg process has no stdin pipe");
     stdin.on("drain", resolveDrain);
+    // A dead pipe (e.g. ffmpeg crashed) surfaces as an 'error' event on the
+    // stream; without a listener Node treats it as an uncaught exception.
+    // Mark the pipe dead and unblock any writeFrame() waiting on drain.
+    stdin.on("error", (err: Error) => {
+      if (!this.pipeError) this.pipeError = err;
+      resolveDrain();
+    });
     this.ffmpegProcess.on("close", resolveDrain);
 
     this.stoppedPromise = new Promise<void>((resolve) => {
@@ -149,7 +158,7 @@ export class Recorder {
   private async writeFrame(buffer: Buffer): Promise<void> {
     if (!this.running) return;
     const stdin = this.ffmpegProcess?.stdin;
-    if (!stdin?.writable) {
+    if (!stdin?.writable || this.pipeError) {
       this.droppedFrames++;
       return;
     }

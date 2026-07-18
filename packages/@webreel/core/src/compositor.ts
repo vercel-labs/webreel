@@ -315,34 +315,52 @@ async function compositeFrames(
     ffmpeg.on("close", (code) => {
       if (code === 0) {
         resolveAll();
-      } else {
-        const stderr = Buffer.concat(stderrChunks).toString().slice(-2000);
-        rejectAll(
-          new Error(
-            `Compositor ffmpeg (layer=${layer}) exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
-          ),
-        );
+        return;
+      }
+      const stderr = Buffer.concat(stderrChunks).toString().slice(-2000);
+      const err = new Error(
+        `Compositor ffmpeg (layer=${layer}) exited with code ${code}${stderr ? `:\n${stderr}` : ""}`,
+      );
+      rejectAll(err);
+
+      // If ffmpeg dies before we've finished feeding it frames (stdin.end()
+      // not yet called), don't rely solely on a stdin 'error' event to
+      // unblock the producer/consumer loop: once Node auto-destroys an
+      // already-closed process's stdin, further stdin.write() calls can
+      // return false with no further 'error' or 'drain' event ever firing,
+      // which would otherwise hang the loop forever. Treat a premature
+      // close as an abort signal directly.
+      if (!state.stdinEnded && !state.abortError) {
+        state.abortError = err;
+        notifyConsumer();
+        notifyProducer();
+        notifyDrain();
       }
     });
     ffmpeg.on("error", rejectAll);
   });
+  // ffmpegDone can reject as soon as the process exits, which may be well
+  // before the abort branch below (or the final `await ffmpegDone`) has a
+  // chance to observe it. Attach a no-op handler now so Node never sees an
+  // unhandled rejection in that window; the promise is still awaited for
+  // its real outcome further down.
+  ffmpegDone.catch(() => {});
 
   const PREFETCH_QUEUE_SIZE = 4;
 
   const state = {
     abortError: null as Error | null,
     producerDone: false,
+    // Set just before stdin.end() is called; an EPIPE after that point means
+    // ffmpeg simply finished reading and is expected, not an abort.
+    stdinEnded: false,
     // Resolves when the queue has items OR the producer is done.
     queueResolve: null as (() => void) | null,
     // Resolves when the consumer dequeues an item (backpressure signal).
     spaceResolve: null as (() => void) | null,
+    // Resolves the consumer's in-flight drain() wait.
+    drainResolve: null as (() => void) | null,
   };
-
-  // EPIPE is expected when ffmpeg finishes reading and closes its stdin.
-  stdin.on("error", (err: NodeJS.ErrnoException) => {
-    if (err.code === "EPIPE") return;
-    if (!state.abortError) state.abortError = err;
-  });
 
   const queue: Buffer[] = [];
 
@@ -362,6 +380,26 @@ async function compositeFrames(
     }
   };
 
+  const notifyDrain = () => {
+    if (state.drainResolve) {
+      const r = state.drainResolve;
+      state.drainResolve = null;
+      r();
+    }
+  };
+
+  // EPIPE is expected once ffmpeg has finished reading and we've called
+  // stdin.end(). Before that, it means ffmpeg died mid-stream: treat it as
+  // an abort and wake every waiter so the producer/consumer loop unwinds
+  // instead of hanging on a drain event a dead stream will never emit.
+  stdin.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE" && state.stdinEnded) return;
+    if (!state.abortError) state.abortError = err;
+    notifyConsumer();
+    notifyProducer();
+    notifyDrain();
+  });
+
   const enqueue = (buf: Buffer) => {
     queue.push(buf);
     notifyConsumer();
@@ -379,7 +417,12 @@ async function compositeFrames(
       state.spaceResolve = r;
     });
 
-  const drain = (): Promise<void> => new Promise((r) => stdin.once("drain", r));
+  const drain = (): Promise<void> =>
+    new Promise((r) => {
+      if (state.abortError) return r();
+      state.drainResolve = r;
+      stdin.once("drain", r);
+    });
 
   const consumer = async () => {
     while (true) {
@@ -396,6 +439,7 @@ async function compositeFrames(
         if (state.abortError) break;
       }
     }
+    state.stdinEnded = true;
     stdin.end();
   };
 
@@ -428,9 +472,14 @@ async function compositeFrames(
 
   if (state.abortError) {
     ffmpeg.kill("SIGTERM");
-    setTimeout(() => {
+    const killTimer = setTimeout(() => {
       if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
     }, KILL_TIMEOUT);
+    killTimer.unref();
+    ffmpeg.once("close", () => clearTimeout(killTimer));
+    // ffmpegDone already has a no-op catch attached above, so its eventual
+    // rejection (from the killed process exiting nonzero) won't surface as
+    // an unhandled rejection alongside the throw below.
     throw state.abortError;
   }
 
