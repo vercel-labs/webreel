@@ -18,7 +18,7 @@ export const metadata = {
 
 ## How it works
 
-webreel launches a headless browser, executes your steps, captures frames at ~60fps, composites cursor and keystroke overlays, and encodes the result with ffmpeg. Chrome and ffmpeg are auto-downloaded to `~/.webreel` on first use, or you can set `CHROME_PATH`, `CHROME_HEADLESS_PATH`, and `FFMPEG_PATH`.
+webreel launches a headless browser, executes your steps, captures frames at ~60fps, composites cursor and keystroke overlays, and encodes the result with ffmpeg. Chrome and ffmpeg are auto-downloaded to `~/.webreel` on first use, or you can set `CHROME_PATH`, `CHROME_HEADLESS_PATH`, and `FFMPEG_PATH`. Chrome launches with its sandbox enabled by default; set `WEBREEL_NO_SANDBOX=1` if your environment requires it disabled (for example, running as root in a container).
 
 ## Get started
 

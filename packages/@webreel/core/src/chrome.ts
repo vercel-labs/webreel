@@ -197,6 +197,60 @@ export interface LaunchChromeOptions {
   headless?: boolean;
 }
 
+/**
+ * Determine whether Chrome should be launched with its sandbox disabled.
+ *
+ * The sandbox is Chrome's primary containment for renderer compromise and is
+ * enabled by default. It is disabled only when explicitly requested via
+ * `WEBREEL_NO_SANDBOX=1`, or when running as root (the sandbox refuses to
+ * start in that case on Linux).
+ */
+export function shouldDisableSandbox(): boolean {
+  if (process.env.WEBREEL_NO_SANDBOX === "1") return true;
+  if (process.getuid?.() === 0) return true;
+  return false;
+}
+
+export function buildChromeArgs(
+  headless: boolean,
+  port: number,
+  userDataDir: string,
+  noSandbox: boolean,
+): string[] {
+  const sandboxArgs = noSandbox ? ["--no-sandbox"] : [];
+
+  return headless
+    ? [
+        `--remote-debugging-port=${port}`,
+        `--user-data-dir=${userDataDir}`,
+        ...sandboxArgs,
+        "--hide-scrollbars",
+        "--enable-begin-frame-control",
+        "--run-all-compositor-stages-before-draw",
+        "--disable-threaded-animation",
+        "--disable-threaded-scrolling",
+        "--disable-checker-imaging",
+        "about:blank",
+      ]
+    : [
+        `--remote-debugging-port=${port}`,
+        `--user-data-dir=${userDataDir}`,
+        ...sandboxArgs,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-sync",
+        "--disable-translate",
+        "--mute-audio",
+        "--hide-scrollbars",
+        "about:blank",
+      ];
+}
+
 export async function launchChrome(
   options?: LaunchChromeOptions,
 ): Promise<ChromeInstance> {
@@ -204,41 +258,14 @@ export async function launchChrome(
   const chromePath = headless ? await ensureHeadlessShell() : await ensureChrome();
 
   let lastError: Error | null = null;
+  let sandboxFallbackWarned = false;
 
   for (let attempt = 1; attempt <= MAX_LAUNCH_ATTEMPTS; attempt++) {
     const port = await findFreePort();
     const userDataDir = mkdtempSync(join(tmpdir(), "webreel-chrome-"));
 
-    const args = headless
-      ? [
-          `--remote-debugging-port=${port}`,
-          `--user-data-dir=${userDataDir}`,
-          "--no-sandbox",
-          "--hide-scrollbars",
-          "--enable-begin-frame-control",
-          "--run-all-compositor-stages-before-draw",
-          "--disable-threaded-animation",
-          "--disable-threaded-scrolling",
-          "--disable-checker-imaging",
-          "about:blank",
-        ]
-      : [
-          `--remote-debugging-port=${port}`,
-          `--user-data-dir=${userDataDir}`,
-          "--no-sandbox",
-          "--no-first-run",
-          "--no-default-browser-check",
-          "--disable-extensions",
-          "--disable-background-networking",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding",
-          "--disable-sync",
-          "--disable-translate",
-          "--mute-audio",
-          "--hide-scrollbars",
-          "about:blank",
-        ];
+    const noSandbox = shouldDisableSandbox() || sandboxFallbackWarned;
+    const args = buildChromeArgs(headless, port, userDataDir, noSandbox);
 
     const proc = spawn(chromePath, args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -295,6 +322,13 @@ export async function launchChrome(
       lastError = err as Error;
       proc.kill("SIGKILL");
       rmSync(userDataDir, { recursive: true, force: true });
+
+      if (!noSandbox && !sandboxFallbackWarned) {
+        sandboxFallbackWarned = true;
+        console.warn(
+          "Chrome failed to launch with its sandbox; retrying without. Set WEBREEL_NO_SANDBOX=1 to skip this probe.",
+        );
+      }
 
       if (attempt < MAX_LAUNCH_ATTEMPTS) {
         await new Promise((r) => setTimeout(r, 500 * attempt));
