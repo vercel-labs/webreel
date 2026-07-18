@@ -101,9 +101,11 @@ Record videos.
 webreel record
 webreel record hero login
 webreel record -c custom.config.json
+webreel record --dry-run
+webreel record --frames
 ```
 
-When run without arguments, webreel reads `webreel.config.json` from the current directory and records all videos. Provide video names to record specific videos only.
+When run without arguments, webreel reads `webreel.config.json` from the current directory and records all videos. Provide video names to record specific videos only. Use `--dry-run` to print the fully resolved config and step list without recording, or `--frames` to save raw JPEGs to `.webreel/frames/`.
 
 ### `webreel preview`
 
@@ -165,19 +167,23 @@ Raw video and timeline data are saved in `.webreel/raw/` and `.webreel/timelines
 
 ### Config options
 
-| Field          | Default       | Description                                               |
-| -------------- | ------------- | --------------------------------------------------------- |
-| `url`          | required      | URL to navigate to                                        |
-| `baseUrl`      | `""`          | Prepended to relative URLs                                |
-| `viewport`     | 1080x1080     | Browser viewport dimensions                               |
-| `zoom`         | -             | CSS zoom level applied to the page                        |
-| `waitFor`      | -             | CSS selector to wait for before starting                  |
-| `output`       | `<name>.mp4`  | Output file path (`.mp4`, `.gif`, or `.webm`)             |
-| `thumbnail`    | `{ time: 0 }` | Object with `time` (seconds) or `enabled: false`          |
-| `theme`        | -             | Overlay theme (`cursor: { image, size, hotspot }`, `hud`) |
-| `include`      | -             | Array of JSON file paths whose steps are prepended        |
-| `defaultDelay` | -             | Default delay (ms) after each step                        |
-| `autoZoom`     | `false`       | Cinematic zoom into each action (bool or object)          |
+| Field          | Default         | Description                                                  |
+| -------------- | --------------- | ------------------------------------------------------------ |
+| `url`          | required        | URL to navigate to                                           |
+| `baseUrl`      | `""`            | Prepended to relative URLs                                   |
+| `viewport`     | 1080x1080       | Browser viewport dimensions                                  |
+| `zoom`         | -               | CSS zoom level applied to the page                           |
+| `fps`          | `60`            | Recording frame rate (1-120)                                 |
+| `quality`      | `80`            | Output quality (1-100); higher values produce larger files   |
+| `waitFor`      | -               | CSS selector to wait for before starting                     |
+| `output`       | `<name>.mp4`    | Output file path (`.mp4`, `.gif`, or `.webm`)                |
+| `thumbnail`    | `{ time: 0 }`   | Object with `time` (seconds) or `enabled: false`             |
+| `theme`        | -               | Overlay theme (`cursor: { image, size, hotspot }`, `hud`)    |
+| `sfx`          | -               | Sound effects configuration for click and keystroke sounds   |
+| `include`      | -               | Array of JSON file paths whose steps are prepended           |
+| `defaultDelay` | -               | Default delay (ms) after each step                           |
+| `clickDwell`   | random 80-180ms | Milliseconds the cursor pauses before clicking (0 = instant) |
+| `autoZoom`     | `false`         | Cinematic zoom into each action (bool or object)             |
 
 ### Actions
 
