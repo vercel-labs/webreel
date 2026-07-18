@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve, extname } from "node:path";
@@ -9,6 +9,7 @@ import { ensureFfmpeg } from "./ffmpeg.js";
 import { hasExited } from "./process.js";
 import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
 import type { InteractionTimeline, TimelineData } from "./timeline.js";
+import { spawnFfmpegStreaming } from "./ffmpeg-run.js";
 
 export class Recorder {
   private outputPath = "";
@@ -93,7 +94,15 @@ export class Recorder {
     mkdirSync(workDir, { recursive: true });
     this.tempVideo = resolve(workDir, `_rec_${Date.now()}.mp4`);
 
-    this.ffmpegProcess = spawn(
+    const resolveDrain = () => {
+      const resolve = this.drainResolve;
+      if (resolve) {
+        this.drainResolve = null;
+        resolve();
+      }
+    };
+
+    const handle = spawnFfmpegStreaming(
       this.ffmpegPath,
       [
         "-y",
@@ -125,27 +134,20 @@ export class Recorder {
         String(this.fps),
         this.tempVideo,
       ],
-      { stdio: ["pipe", "pipe", "pipe"] },
+      "Recorder ffmpeg",
+      {
+        // A dead pipe (e.g. ffmpeg crashed) surfaces as an 'error' event on
+        // the stream; without a listener Node treats it as an uncaught
+        // exception. Mark the pipe dead and unblock any writeFrame() waiting
+        // on drain.
+        onPipeError: (err) => {
+          if (!this.pipeError) this.pipeError = err;
+          resolveDrain();
+        },
+      },
     );
-
-    const resolveDrain = () => {
-      const resolve = this.drainResolve;
-      if (resolve) {
-        this.drainResolve = null;
-        resolve();
-      }
-    };
-
-    const stdin = this.ffmpegProcess.stdin;
-    if (!stdin) throw new Error("ffmpeg process has no stdin pipe");
-    stdin.on("drain", resolveDrain);
-    // A dead pipe (e.g. ffmpeg crashed) surfaces as an 'error' event on the
-    // stream; without a listener Node treats it as an uncaught exception.
-    // Mark the pipe dead and unblock any writeFrame() waiting on drain.
-    stdin.on("error", (err: Error) => {
-      if (!this.pipeError) this.pipeError = err;
-      resolveDrain();
-    });
+    this.ffmpegProcess = handle.proc;
+    handle.stdin.on("drain", resolveDrain);
     this.ffmpegProcess.on("close", resolveDrain);
 
     this.stoppedPromise = new Promise<void>((resolve) => {
