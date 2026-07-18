@@ -48,7 +48,8 @@
     "build": "rm -rf dist && tsc",
     "type-check": "tsc --noEmit",
     "dev": "tsc --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "schema:generate": "jiti scripts/generate-schema.ts"
   },
   "dependencies": {
     "@webreel/core": "workspace:*",

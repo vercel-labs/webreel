@@ -82,7 +82,6 @@
         },
         {
           "type": "object",
-          "required": ["width", "height"],
           "properties": {
             "width": {
               "type": "integer",
@@ -95,6 +94,7 @@
               "description": "Viewport height in pixels."
             }
           },
+          "required": ["width", "height"],
           "additionalProperties": false
         }
       ]
@@ -109,14 +109,14 @@
         "size": {
           "type": "number",
           "minimum": 1,
-          "description": "Size of the cursor overlay in pixels.",
-          "default": 24
+          "default": 24,
+          "description": "Size of the cursor overlay in pixels."
         },
         "hotspot": {
           "type": "string",
           "enum": ["top-left", "center"],
-          "description": "Where the click point lands relative to the cursor image. Use 'center' for circle/dot cursors.",
-          "default": "top-left"
+          "default": "top-left",
+          "description": "Where the click point lands relative to the cursor image. Use 'center' for circle/dot cursors."
         }
       },
       "additionalProperties": false
@@ -142,8 +142,8 @@
             "fontSize": {
               "type": "number",
               "minimum": 1,
-              "description": "Font size in pixels for the keystroke HUD.",
-              "default": 56
+              "default": 56,
+              "description": "Font size in pixels for the keystroke HUD."
             },
             "fontFamily": {
               "type": "string",
@@ -152,14 +152,14 @@
             "borderRadius": {
               "type": "number",
               "minimum": 0,
-              "description": "Border radius in pixels for the keystroke HUD.",
-              "default": 18
+              "default": 18,
+              "description": "Border radius in pixels for the keystroke HUD."
             },
             "position": {
               "type": "string",
               "enum": ["top", "bottom"],
-              "description": "Position of the keystroke HUD.",
-              "default": "bottom"
+              "default": "bottom",
+              "description": "Position of the keystroke HUD."
             }
           },
           "additionalProperties": false
@@ -260,6 +260,18 @@
               "default": 0.3,
               "description": "Fraction of the target bounding box added as padding around it."
             },
+            "sessionGapS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 4,
+              "description": "Actions within this many seconds share one zoom session; the camera pans between them instead of zooming out."
+            },
+            "minPanS": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0.8,
+              "description": "Skip panning to an intermediate target when the pan would be shorter than this many seconds."
+            },
             "minZoomRatio": {
               "type": "number",
               "minimum": 0,
@@ -273,18 +285,6 @@
               "maximum": 1,
               "default": 0.75,
               "description": "Skip zooming when the computed crop would be this fraction of the viewport or larger."
-            },
-            "sessionGapS": {
-              "type": "number",
-              "minimum": 0,
-              "default": 4,
-              "description": "Actions within this many seconds share one zoom session; the camera pans between them instead of zooming out."
-            },
-            "minPanS": {
-              "type": "number",
-              "minimum": 0,
-              "default": 0.8,
-              "description": "Skip panning to an intermediate target when the pan would be shorter than this many seconds."
             }
           },
           "additionalProperties": false
@@ -293,7 +293,6 @@
     },
     "video": {
       "type": "object",
-      "required": ["url", "steps"],
       "properties": {
         "url": {
           "type": "string",
@@ -384,6 +383,7 @@
           "description": "Array of action steps to execute."
         }
       },
+      "required": ["url", "steps"],
       "additionalProperties": false
     },
     "step": {
@@ -401,6 +401,9 @@
           "$ref": "#/$defs/stepDrag"
         },
         {
+          "$ref": "#/$defs/stepMoveTo"
+        },
+        {
           "$ref": "#/$defs/stepType"
         },
         {
@@ -408,9 +411,6 @@
         },
         {
           "$ref": "#/$defs/stepWait"
-        },
-        {
-          "$ref": "#/$defs/stepMoveTo"
         },
         {
           "$ref": "#/$defs/stepScreenshot"
@@ -580,6 +580,46 @@
       },
       "additionalProperties": false
     },
+    "stepMoveTo": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "moveTo"
+        },
+        "text": {
+          "type": "string",
+          "description": "Visible text of the target element."
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector of the target element."
+        },
+        "within": {
+          "type": "string",
+          "description": "CSS selector to scope the search."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
+      "additionalProperties": false
+    },
     "stepType": {
       "type": "object",
       "required": ["action", "text"],
@@ -686,8 +726,8 @@
         "timeout": {
           "type": "number",
           "minimum": 0,
-          "description": "Timeout in milliseconds.",
-          "default": 30000
+          "default": 30000,
+          "description": "Timeout in milliseconds."
         },
         "label": {
           "$ref": "#/$defs/label"
@@ -705,46 +745,6 @@
         },
         {
           "required": ["text"]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "stepMoveTo": {
-      "type": "object",
-      "required": ["action"],
-      "properties": {
-        "action": {
-          "type": "string",
-          "const": "moveTo"
-        },
-        "text": {
-          "type": "string",
-          "description": "Visible text of the target element."
-        },
-        "selector": {
-          "type": "string",
-          "description": "CSS selector of the target element."
-        },
-        "within": {
-          "type": "string",
-          "description": "CSS selector to scope the search."
-        },
-        "label": {
-          "$ref": "#/$defs/label"
-        },
-        "delay": {
-          "$ref": "#/$defs/delay"
-        },
-        "description": {
-          "$ref": "#/$defs/description"
-        }
-      },
-      "oneOf": [
-        {
-          "required": ["text"]
-        },
-        {
-          "required": ["selector"]
         }
       ],
       "additionalProperties": false
@@ -811,36 +811,6 @@
           "type": "string",
           "minLength": 1,
           "description": "CSS selector for an element with an href attribute."
-        },
-        "label": {
-          "$ref": "#/$defs/label"
-        },
-        "delay": {
-          "$ref": "#/$defs/delay"
-        },
-        "description": {
-          "$ref": "#/$defs/description"
-        }
-      },
-      "additionalProperties": false
-    },
-    "stepUpload": {
-      "type": "object",
-      "required": ["action", "selector", "filePath"],
-      "properties": {
-        "action": {
-          "type": "string",
-          "const": "upload"
-        },
-        "selector": {
-          "type": "string",
-          "minLength": 1,
-          "description": "CSS selector for the file input element."
-        },
-        "filePath": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Path to the file to upload, resolved relative to the config file."
         },
         "label": {
           "$ref": "#/$defs/label"
@@ -939,7 +909,45 @@
       ],
       "additionalProperties": false
     },
+    "stepUpload": {
+      "type": "object",
+      "required": ["action", "selector", "filePath"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "upload"
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector for the file input element."
+        },
+        "filePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the file to upload, resolved relative to the config file."
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "delay": {
+          "$ref": "#/$defs/delay"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "additionalProperties": false
+    },
     "elementTarget": {
+      "oneOf": [
+        {
+          "required": ["text"]
+        },
+        {
+          "required": ["selector"]
+        }
+      ],
       "type": "object",
       "properties": {
         "text": {
@@ -955,14 +963,6 @@
           "description": "CSS selector to scope the search."
         }
       },
-      "oneOf": [
-        {
-          "required": ["text"]
-        },
-        {
-          "required": ["selector"]
-        }
-      ],
       "additionalProperties": false
     }
   }
