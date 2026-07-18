@@ -1,5 +1,15 @@
 import { VIEWPORT_PRESETS } from "../types.js";
 import type { ValidationError } from "./errors.js";
+import {
+  VALID_ACTIONS,
+  KNOWN_TOP_LEVEL_KEYS,
+  KNOWN_VIDEO_KEYS,
+  KNOWN_STEP_KEYS,
+  KNOWN_AUTOZOOM_KEYS,
+  AUTOZOOM_NONNEGATIVE_KEYS,
+  AUTOZOOM_RATIO_KEYS,
+  VALID_SFX_VARIANTS,
+} from "./schema-def.js";
 
 export type { ValidationError } from "./errors.js";
 
@@ -11,135 +21,6 @@ export function parseSchemaVersion(schema?: string): number {
   if (!match) return -1;
   return parseInt(match[1], 10);
 }
-
-const VALID_ACTIONS = new Set([
-  "pause",
-  "click",
-  "key",
-  "drag",
-  "moveTo",
-  "type",
-  "scroll",
-  "wait",
-  "screenshot",
-  "navigate",
-  "navigateHref",
-  "hover",
-  "select",
-  "upload",
-]);
-
-const KNOWN_TOP_LEVEL_KEYS = new Set([
-  "$schema",
-  "outDir",
-  "baseUrl",
-  "viewport",
-  "theme",
-  "sfx",
-  "include",
-  "defaultDelay",
-  "clickDwell",
-  "videos",
-]);
-
-const KNOWN_VIDEO_KEYS = new Set([
-  "url",
-  "baseUrl",
-  "viewport",
-  "zoom",
-  "fps",
-  "quality",
-  "waitFor",
-  "output",
-  "thumbnail",
-  "include",
-  "theme",
-  "sfx",
-  "defaultDelay",
-  "clickDwell",
-  "autoZoom",
-  "steps",
-]);
-
-const KNOWN_STEP_KEYS: Record<string, Set<string>> = {
-  pause: new Set(["action", "ms", "label", "description"]),
-  click: new Set([
-    "action",
-    "text",
-    "selector",
-    "within",
-    "modifiers",
-    "label",
-    "delay",
-    "description",
-  ]),
-  key: new Set(["action", "key", "target", "label", "delay", "description"]),
-  drag: new Set(["action", "from", "to", "label", "delay", "description"]),
-  moveTo: new Set([
-    "action",
-    "text",
-    "selector",
-    "within",
-    "label",
-    "delay",
-    "description",
-  ]),
-  type: new Set([
-    "action",
-    "text",
-    "selector",
-    "within",
-    "charDelay",
-    "method",
-    "label",
-    "delay",
-    "description",
-  ]),
-  scroll: new Set([
-    "action",
-    "x",
-    "y",
-    "text",
-    "selector",
-    "within",
-    "label",
-    "delay",
-    "description",
-  ]),
-  wait: new Set([
-    "action",
-    "selector",
-    "text",
-    "within",
-    "timeout",
-    "label",
-    "delay",
-    "description",
-  ]),
-  screenshot: new Set(["action", "output", "label", "delay", "description"]),
-  navigate: new Set(["action", "url", "label", "delay", "description"]),
-  navigateHref: new Set(["action", "selector", "label", "delay", "description"]),
-  hover: new Set([
-    "action",
-    "text",
-    "selector",
-    "within",
-    "label",
-    "delay",
-    "description",
-  ]),
-  select: new Set([
-    "action",
-    "text",
-    "selector",
-    "within",
-    "value",
-    "label",
-    "delay",
-    "description",
-  ]),
-  upload: new Set(["action", "selector", "filePath", "label", "delay", "description"]),
-};
 
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -464,8 +345,6 @@ function validateInclude(include: unknown, prefix: string): ValidationError[] {
   return errors;
 }
 
-const VALID_SFX_VARIANTS = new Set([1, 2, 3, 4]);
-
 function isValidSfxValue(value: unknown): boolean {
   return VALID_SFX_VARIANTS.has(value as number) || typeof value === "string";
 }
@@ -488,31 +367,6 @@ function validateSfx(sfx: unknown, prefix: string): ValidationError[] {
   }
   return errors;
 }
-
-const KNOWN_AUTOZOOM_KEYS = new Set([
-  "enabled",
-  "approachS",
-  "settleBeforeS",
-  "holdAfterS",
-  "releaseS",
-  "paddingRatio",
-  "minZoomRatio",
-  "skipZoomRatio",
-  "sessionGapS",
-  "minPanS",
-]);
-
-const AUTOZOOM_NONNEGATIVE_KEYS = [
-  "approachS",
-  "settleBeforeS",
-  "holdAfterS",
-  "releaseS",
-  "paddingRatio",
-  "sessionGapS",
-  "minPanS",
-] as const;
-
-const AUTOZOOM_RATIO_KEYS = ["minZoomRatio", "skipZoomRatio"] as const;
 
 function validateAutoZoom(autoZoom: unknown, prefix: string): ValidationError[] {
   const errors: ValidationError[] = [];
