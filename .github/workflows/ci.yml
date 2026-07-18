@@ -35,3 +35,48 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  record:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          echo "FFMPEG_PATH=$(which ffmpeg)" >> "$GITHUB_ENV"
+
+      - name: Cache Chrome for Testing
+        uses: actions/cache@v4
+        with:
+          path: ~/.webreel
+          key: ${{ runner.os }}-webreel-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-webreel-
+
+      - name: Build
+        run: pnpm build
+
+      - name: Record example videos
+        env:
+          SKIP_SYNC: "1"
+          EXAMPLES_FILTER: "hello-world form-filling gif-output"
+        run: bash scripts/record-examples.sh
+
+      - name: Upload recordings on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recorded-examples
+          path: examples/*/videos/
+          retention-days: 7
