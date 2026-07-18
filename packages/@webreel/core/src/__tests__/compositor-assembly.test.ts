@@ -97,7 +97,7 @@ function makeTimelineData(overrides: Partial<TimelineData> = {}): TimelineData {
 }
 
 describe("compose zoom pass", () => {
-  it("embeds the provided zoomFilter verbatim in the zoom-pass ffmpeg args", async () => {
+  it("embeds the provided zoomFilter verbatim in the merged zoom+HUD pass's filter_complex, with the overlay after it", async () => {
     spawnCalls.length = 0;
     const zoomFilter = "zoompan=z='if(lte(zoom,1.0),1.5,zoom)':d=1:s=640x480";
 
@@ -105,18 +105,91 @@ describe("compose zoom pass", () => {
       zoomFilter,
     });
 
-    const zoomPassCall = spawnCalls.find((args) => args.includes("-vf"));
+    const zoomPassCall = spawnCalls.find((args) => {
+      const idx = args.indexOf("-filter_complex");
+      return idx !== -1 && args[idx + 1].includes(zoomFilter);
+    });
     expect(zoomPassCall).toBeDefined();
-    const vfIndex = zoomPassCall!.indexOf("-vf");
-    expect(zoomPassCall![vfIndex + 1]).toBe(zoomFilter);
+    const filterComplex = zoomPassCall![zoomPassCall!.indexOf("-filter_complex") + 1];
+    expect(filterComplex.indexOf(zoomFilter)).toBeLessThan(
+      filterComplex.indexOf("overlay=0:0"),
+    );
+
+    // Only two full encodes for the autozoom mp4 path: the cursor-overlay
+    // stage and the merged zoom+HUD stage (no separate zoom-only pass).
+    const streamingSpawnCalls = spawnCalls.filter((args) =>
+      args.includes("-filter_complex"),
+    );
+    expect(streamingSpawnCalls).toHaveLength(2);
   });
 
-  it("runs no zoom pass (no -vf) when zoomFilter is not provided", async () => {
+  it("runs no zoom pass (plain overlay, no zoompan) when zoomFilter is not provided", async () => {
     spawnCalls.length = 0;
 
     await compose("/tmp/clean.mp4", makeTimelineData(), "/tmp/out2.mp4");
 
-    const zoomPassCall = spawnCalls.find((args) => args.includes("-vf"));
+    const zoomPassCall = spawnCalls.find((args) => {
+      const idx = args.indexOf("-filter_complex");
+      return idx !== -1 && args[idx + 1].includes("zoompan=");
+    });
     expect(zoomPassCall).toBeUndefined();
+  });
+
+  it("keeps the GIF config (palette conversion) on the merged pass for GIF output", async () => {
+    spawnCalls.length = 0;
+    const zoomFilter = "zoompan=z='if(lte(zoom,1.0),1.5,zoom)':d=1:s=640x480";
+
+    await compose("/tmp/clean.mp4", makeTimelineData(), "/tmp/out.gif", {
+      zoomFilter,
+    });
+
+    const gifPassCall = spawnCalls.find((args) => {
+      const idx = args.indexOf("-filter_complex");
+      return idx !== -1 && args[idx + 1].includes("palettegen");
+    });
+    expect(gifPassCall).toBeDefined();
+    const filterComplex = gifPassCall![gifPassCall!.indexOf("-filter_complex") + 1];
+    expect(filterComplex).toContain(zoomFilter);
+    expect(filterComplex.indexOf(zoomFilter)).toBeLessThan(
+      filterComplex.indexOf("overlay=0:0"),
+    );
+    expect(filterComplex.indexOf("overlay=0:0")).toBeLessThan(
+      filterComplex.indexOf("palettegen"),
+    );
+    expect(gifPassCall).toContain("-loop");
+
+    // Only two full encodes total: the cursor-overlay stage and the merged
+    // zoom+HUD+GIF-palette stage (no separate zoom-only pass for GIF either).
+    const streamingSpawnCalls = spawnCalls.filter((args) =>
+      args.includes("-filter_complex"),
+    );
+    expect(streamingSpawnCalls).toHaveLength(2);
+  });
+});
+
+describe("buildZoomHudMp4Config / buildZoomHudGifConfig", () => {
+  it("embeds zoompan before the HUD overlay in the mp4 config", async () => {
+    const { buildZoomHudMp4Config } = await import("../compositor.js");
+    const zoomFilter = "zoompan=z=1.5:d=1:s=640x480";
+    const config = buildZoomHudMp4Config(30, 20, zoomFilter, "/tmp/out.mp4");
+
+    expect(config.filterComplex).toBe(
+      `[0]${zoomFilter}[zoomed];[zoomed][1]overlay=0:0:shortest=1`,
+    );
+    expect(config.outputArgs[config.outputArgs.length - 1]).toBe("/tmp/out.mp4");
+  });
+
+  it("embeds zoompan, then overlay, then the gif palette filter in the gif config", async () => {
+    const { buildZoomHudGifConfig } = await import("../compositor.js");
+    const zoomFilter = "zoompan=z=1.5:d=1:s=640x480";
+    const config = buildZoomHudGifConfig(480, zoomFilter, "/tmp/out.gif");
+
+    expect(config.filterComplex.indexOf(zoomFilter)).toBeLessThan(
+      config.filterComplex.indexOf("overlay=0:0"),
+    );
+    expect(config.filterComplex.indexOf("overlay=0:0")).toBeLessThan(
+      config.filterComplex.indexOf("palettegen"),
+    );
+    expect(config.outputArgs).toEqual(["-loop", "0", "/tmp/out.gif"]);
   });
 });

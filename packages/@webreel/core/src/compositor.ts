@@ -5,7 +5,7 @@ import sharp from "sharp";
 import type { TimelineData } from "./timeline.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
 import { buildGifFilter, finalizeMp4, finalizeWebm, type SfxConfig } from "./media.js";
-import { runFfmpegAsync, spawnFfmpegStreaming } from "./ffmpeg-run.js";
+import { spawnFfmpegStreaming } from "./ffmpeg-run.js";
 
 interface OverlayContext {
   cursorPng: Buffer;
@@ -83,20 +83,27 @@ export async function compose(
   }
 
   // Autozoom pipeline layering:
-  //   Stage A overlays cursor-only (not HUD) on the raw video. Stage B
-  //   applies zoompan on the cursor-overlaid intermediate. Stage C overlays
-  //   HUD on the zoomed frame. HUD stays at the final viewport coordinates
-  //   regardless of how the camera crops/scales, so captions never get
-  //   cropped by zoom.
+  //   Stage A overlays cursor-only (not HUD) on the raw video, producing an
+  //   intermediate file. Stage B applies zoompan AND overlays HUD in one
+  //   ffmpeg invocation: zoompan runs first (input 0, the cursor-overlaid
+  //   file - no pipe involved) producing a `[zoomed]` label, then the
+  //   HUD-only frame stream (piped in as input 1) is overlaid on top of
+  //   that. HUD stays at the final viewport coordinates regardless of how
+  //   the camera crops/scales, so captions never get cropped by zoom.
   //
-  // Why three stages instead of one? (1) zoompan + image2pipe in the same
-  // filter_complex deadlocks when the pipe reader can't drain fast enough.
-  // (2) HUD on top of the zoomed frame must run after zoompan or it gets
-  // cropped out of the camera window.
+  // Why not one stage total? zoompan + image2pipe in the same filter_complex
+  // deadlocks when the pipe reader can't drain fast enough, so the cursor
+  // overlay (which does need image2pipe, for the raw recording) can't also
+  // carry zoompan in the same invocation. Splitting cursor-overlay from
+  // zoompan+HUD sidesteps that: stage A's image2pipe input is consumed
+  // before stage B ever runs, and stage B's zoompan input (0) is a real
+  // file, not a pipe - only its HUD input (1) is piped, and HUD frames are
+  // cheap/mostly-transparent so the pipe reader keeps up. HUD must be
+  // applied after zoompan (not before) or it gets cropped out of the camera
+  // window; putting it second in the merged filtergraph satisfies that.
   const workDir = resolve(homedir(), ".webreel");
   mkdirSync(workDir, { recursive: true });
   const cursorStagePath = resolve(workDir, `_cursor_${Date.now()}.mp4`);
-  const zoomStagePath = resolve(workDir, `_zoom_${Date.now()}.mp4`);
   const tempComposed = resolve(workDir, `_composed_${Date.now()}.mp4`);
 
   try {
@@ -109,34 +116,30 @@ export async function compose(
       buildMp4Config(fps, crf, cursorStagePath),
       "cursor",
     );
-    await applyZoomPass(ffmpegPath, cursorStagePath, zoomFilter, zoomStagePath, crf, fps);
 
     if (ext === ".gif") {
-      await compositeFrames(
+      await applyZoomWithHud(
         ffmpegPath,
-        zoomStagePath,
+        cursorStagePath,
         timelineData,
         cursorPng,
         zoom,
-        buildGifConfig(width, outputPath),
-        "hud",
+        buildZoomHudGifConfig(width, zoomFilter, outputPath),
       );
       return;
     }
 
-    await compositeFrames(
+    await applyZoomWithHud(
       ffmpegPath,
-      zoomStagePath,
+      cursorStagePath,
       timelineData,
       cursorPng,
       zoom,
-      buildMp4Config(fps, crf, tempComposed),
-      "hud",
+      buildZoomHudMp4Config(fps, crf, zoomFilter, tempComposed),
     );
     finalizeComposed(ffmpegPath, tempComposed, outputPath, timelineData, sfx);
   } finally {
     rmSync(cursorStagePath, { force: true });
-    rmSync(zoomStagePath, { force: true });
     rmSync(tempComposed, { force: true });
   }
 }
@@ -223,6 +226,60 @@ export function buildGifConfig(
 ): CompositorFfmpegConfig {
   return {
     filterComplex: `[0][1]overlay=0:0:shortest=1,${buildGifFilter(width)}`,
+    outputArgs: ["-loop", "0", outputPath],
+  };
+}
+
+// Builds the merged zoompan+HUD-overlay filtergraph: input 0 (a file, not a
+// pipe) runs through zoompan first, then the HUD-only frame stream piped in
+// as input 1 is overlaid on top of the zoomed result. No explicit -map is
+// needed: as with buildMp4Config/buildGifConfig's single unlabeled overlay
+// output, ffmpeg auto-selects the sole filtergraph output when there's only
+// one.
+function buildZoomHudFilterComplex(zoomFilter: string, tailFilter?: string): string {
+  const base = `[0]${zoomFilter}[zoomed];[zoomed][1]overlay=0:0:shortest=1`;
+  return tailFilter ? `${base},${tailFilter}` : base;
+}
+
+export function buildZoomHudMp4Config(
+  fps: number,
+  crf: number,
+  zoomFilter: string,
+  outputPath: string,
+): CompositorFfmpegConfig {
+  return {
+    filterComplex: buildZoomHudFilterComplex(zoomFilter),
+    outputArgs: [
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      String(crf),
+      "-pix_fmt",
+      "yuv420p",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      "-colorspace",
+      "bt709",
+      "-movflags",
+      "+faststart",
+      "-r",
+      String(fps),
+      outputPath,
+    ],
+  };
+}
+
+export function buildZoomHudGifConfig(
+  width: number,
+  zoomFilter: string,
+  outputPath: string,
+): CompositorFfmpegConfig {
+  return {
+    filterComplex: buildZoomHudFilterComplex(zoomFilter, buildGifFilter(width)),
     outputArgs: ["-loop", "0", outputPath],
   };
 }
@@ -430,43 +487,30 @@ async function compositeFrames(
   await handle.done;
 }
 
-async function applyZoomPass(
+// The merged zoom+HUD pass: input 0 is the cursor-overlaid intermediate
+// (a real file - the zoompan filter never touches a pipe, so constraint 1
+// in the module comment above holds). Its filter_complex (built by
+// buildZoomHudMp4Config/buildZoomHudGifConfig) runs zoompan first, then
+// overlays the HUD-only frame stream piped in as input 1. Reuses
+// compositeFrames's producer/consumer streaming machinery verbatim via
+// layer="hud" - the cursor is already baked into input 0 by the prior
+// stage, so only HUD content needs to be rendered/piped here.
+async function applyZoomWithHud(
   ffmpegPath: string,
-  inputPath: string,
-  zoomFilter: string,
-  outputPath: string,
-  crf: number,
-  fps: number,
+  cursorStagePath: string,
+  timeline: TimelineData,
+  cursorPng: Buffer,
+  zoom: number,
+  config: CompositorFfmpegConfig,
 ): Promise<void> {
-  await runFfmpegAsync(
+  await compositeFrames(
     ffmpegPath,
-    [
-      "-y",
-      "-i",
-      inputPath,
-      "-vf",
-      zoomFilter,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "ultrafast",
-      "-crf",
-      String(crf),
-      "-pix_fmt",
-      "yuv420p",
-      "-color_primaries",
-      "bt709",
-      "-color_trc",
-      "bt709",
-      "-colorspace",
-      "bt709",
-      "-movflags",
-      "+faststart",
-      "-r",
-      String(fps),
-      outputPath,
-    ],
-    "Zoom-pass ffmpeg",
+    cursorStagePath,
+    timeline,
+    cursorPng,
+    zoom,
+    config,
+    "hud",
   );
 }
 
