@@ -1,5 +1,18 @@
-import { describe, it, expect } from "vitest";
-import { computeEasedPath, computeDragTiming } from "../cursor-motion.js";
+import { describe, it, expect, vi } from "vitest";
+import { computeEasedPath, computeDragTiming, animateMoveTo } from "../cursor-motion.js";
+import { RecordingContext } from "../actions.js";
+import { InteractionTimeline } from "../timeline.js";
+import type { CDPClient } from "../types.js";
+
+function createMockClient() {
+  return {
+    Input: {
+      dispatchMouseEvent: vi.fn().mockResolvedValue(undefined),
+    },
+  } as unknown as CDPClient & {
+    Input: { dispatchMouseEvent: ReturnType<typeof vi.fn> };
+  };
+}
 
 describe("computeEasedPath", () => {
   it("returns a single destination point when distance is < 1", () => {
@@ -41,5 +54,63 @@ describe("computeDragTiming", () => {
   it("delayMs is positive", () => {
     const { delayMs } = computeDragTiming(200);
     expect(delayMs).toBeGreaterThan(0);
+  });
+});
+
+describe("animateMoveTo (recording)", () => {
+  it("does not dispatch mouseMoved until the cursor path is fully consumed by ticks", async () => {
+    const ctx = new RecordingContext();
+    ctx.setMode("record");
+    const timeline = new InteractionTimeline(1080, 1080);
+    ctx.setTimeline(timeline);
+    const client = createMockClient();
+
+    const movePromise = animateMoveTo(ctx, client, 0, 0, 100, 100);
+
+    // setCursorPath runs synchronously before the first await inside
+    // animateMoveTo, so the dispatch should not have fired yet.
+    expect(client.Input.dispatchMouseEvent).not.toHaveBeenCalled();
+
+    // Consume a couple of ticks -- deliberately short of the full path.
+    timeline.tick();
+    timeline.tick();
+    await Promise.resolve();
+    expect(client.Input.dispatchMouseEvent).not.toHaveBeenCalled();
+
+    // Drive enough ticks to consume the rest of the path. The exact step
+    // count depends on distance/jitter (see moveDuration), so over-tick
+    // generously -- ticks after the path drains are harmless no-ops.
+    for (let i = 0; i < 100; i++) timeline.tick();
+
+    await movePromise;
+    expect(client.Input.dispatchMouseEvent).toHaveBeenCalledWith({
+      type: "mouseMoved",
+      x: 100,
+      y: 100,
+    });
+  });
+
+  it("unblocks via releaseWaiters without needing the path to fully drain", async () => {
+    const ctx = new RecordingContext();
+    ctx.setMode("record");
+    const timeline = new InteractionTimeline(1080, 1080);
+    ctx.setTimeline(timeline);
+    const client = createMockClient();
+
+    const movePromise = animateMoveTo(ctx, client, 0, 0, 500, 500);
+
+    // Consume only one point of a much longer path, then interrupt.
+    timeline.tick();
+    await Promise.resolve();
+    expect(client.Input.dispatchMouseEvent).not.toHaveBeenCalled();
+
+    timeline.releaseWaiters();
+
+    await movePromise;
+    expect(client.Input.dispatchMouseEvent).toHaveBeenCalledWith({
+      type: "mouseMoved",
+      x: 500,
+      y: 500,
+    });
   });
 });
