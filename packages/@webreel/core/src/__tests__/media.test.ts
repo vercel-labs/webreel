@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveSfxPath, ensureSoundAssets, buildAudioMixArgs } from "../media.js";
+import {
+  resolveSfxPath,
+  ensureSoundAssets,
+  buildAudioMixArgs,
+  buildGifFilter,
+} from "../media.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = resolve(__dirname, "..", "..", "assets");
@@ -110,5 +115,19 @@ describe("buildAudioMixArgs", () => {
     const { inputArgs } = buildAudioMixArgs("input.mp4", events, 1, { click: 3 });
     const clickPath = resolve(ASSETS_DIR, "click-3.mp3");
     expect(inputArgs).toContain(clickPath);
+  });
+});
+
+describe("buildGifFilter", () => {
+  it("uses stats_mode=full palettegen and bayer dithering (matches compositor quality)", () => {
+    const filter = buildGifFilter(800);
+    expect(filter).toBe(
+      "fps=15,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5",
+    );
+  });
+
+  it("defaults to 15fps and allows overriding fps", () => {
+    expect(buildGifFilter(640)).toContain("fps=15,");
+    expect(buildGifFilter(640, 30)).toContain("fps=30,");
   });
 });

@@ -5,7 +5,7 @@ import { resolve, extname } from "node:path";
 import sharp from "sharp";
 import type { TimelineData } from "./timeline.js";
 import { ensureFfmpeg } from "./ffmpeg.js";
-import { finalizeMp4, finalizeWebm, type SfxConfig } from "./media.js";
+import { buildGifFilter, finalizeMp4, finalizeWebm, type SfxConfig } from "./media.js";
 
 interface OverlayContext {
   cursorPng: Buffer;
@@ -217,17 +217,9 @@ function buildMp4Config(
   };
 }
 
-const GIF_FPS = 15;
-const GIF_BAYER_SCALE = 5;
-
 function buildGifConfig(width: number, outputPath: string): CompositorFfmpegConfig {
   return {
-    filterComplex: [
-      `[0][1]overlay=0:0:shortest=1`,
-      `fps=${GIF_FPS}`,
-      `scale=${width}:-1:flags=lanczos`,
-      `split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${GIF_BAYER_SCALE}`,
-    ].join(","),
+    filterComplex: `[0][1]overlay=0:0:shortest=1,${buildGifFilter(width)}`,
     outputArgs: ["-loop", "0", outputPath],
   };
 }
