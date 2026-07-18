@@ -1,4 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import type { Writable } from "node:stream";
+import { hasExited } from "./process.js";
 
 // Shared across every ffmpeg invocation: only the last couple KB of stderr
 // are useful for diagnosing a failure, and buffering more than that in an
@@ -84,7 +86,7 @@ export interface FfmpegStreamingOptions {
 
 export interface FfmpegStreamingHandle {
   proc: ChildProcess;
-  stdin: NodeJS.WritableStream;
+  stdin: Writable;
   /** Resolves on a clean (code 0) close; rejects with a `${stage}`-named,
    * stderr-tailed Error otherwise. A no-op .catch() is attached internally
    * so an early rejection (e.g. from the abort path killing the process)
@@ -155,7 +157,11 @@ export function spawnFfmpegStreaming(
   const kill = () => {
     proc.kill("SIGTERM");
     const killTimer = setTimeout(() => {
-      if (!proc.killed) proc.kill("SIGKILL");
+      // proc.killed only reflects that a kill() call was made, not that the
+      // process actually died - check real exit status instead so a target
+      // that ignores SIGTERM (e.g. traps it) actually gets escalated to
+      // SIGKILL instead of the timer silently no-oping forever.
+      if (!hasExited(proc)) proc.kill("SIGKILL");
     }, KILL_GRACE_MS);
     killTimer.unref();
     proc.once("close", () => clearTimeout(killTimer));
