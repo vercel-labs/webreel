@@ -50,7 +50,9 @@ describe("injectOverlays", () => {
     const { client, calls } = createMockClient();
     await injectOverlays(client);
     const expr = calls[0].expression;
-    expect(expr).toContain(`background:${DEFAULT_HUD_THEME.background}`);
+    expect(expr).toContain(
+      `"background:" + ${JSON.stringify(DEFAULT_HUD_THEME.background)}`,
+    );
     expect(expr).toContain(`border-radius:" + z(${DEFAULT_HUD_THEME.borderRadius})`);
   });
 
@@ -67,10 +69,37 @@ describe("injectOverlays", () => {
     };
     await injectOverlays(client, theme);
     const expr = calls[0].expression;
-    expect(expr).toContain("background:red");
-    expect(expr).toContain("color: blue");
+    expect(expr).toContain('"background:" + "red"');
+    expect(expr).toContain('"color:" + "blue"');
     expect(expr).toContain('border-radius:" + z(8)');
-    expect(expr).toContain('"top:"');
+    expect(expr).toContain('"top" + ":"');
+  });
+
+  it("escapes hostile theme strings so the injected script stays syntactically valid", async () => {
+    const { client, calls } = createMockClient();
+    const theme: OverlayTheme = {
+      hud: {
+        background: `"; document.title = "pwned"; //`,
+        color: "` + alert(1) + `",
+        fontFamily: "${alert(1)}, sans-serif",
+        fontSize: 40,
+        borderRadius: 12,
+        position: "top",
+      },
+    };
+    await injectOverlays(client, theme);
+    const expr = calls[0].expression;
+    expect(() => new Function(expr)).not.toThrow();
+    expect(expr).toContain(JSON.stringify(theme.hud!.background));
+    expect(expr).toContain(JSON.stringify(theme.hud!.color));
+    expect(expr).toContain(JSON.stringify(theme.hud!.fontFamily));
+  });
+
+  it("produces a syntactically valid script with default theme values", async () => {
+    const { client, calls } = createMockClient();
+    await injectOverlays(client);
+    const expr = calls[0].expression;
+    expect(() => new Function(expr)).not.toThrow();
   });
 
   it("uses custom cursor SVG", async () => {

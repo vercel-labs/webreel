@@ -33,7 +33,7 @@ export async function injectOverlays(
   const hudFontSize = theme?.hud?.fontSize ?? DEFAULT_HUD_THEME.fontSize;
   const hudFontFamily = theme?.hud?.fontFamily ?? DEFAULT_HUD_THEME.fontFamily;
   const hudBorderRadius = theme?.hud?.borderRadius ?? DEFAULT_HUD_THEME.borderRadius;
-  const hudPosition = theme?.hud?.position ?? DEFAULT_HUD_THEME.position;
+  const hudPosition = theme?.hud?.position === "top" ? "top" : "bottom";
 
   await client.Runtime.evaluate({
     expression: `(() => {
@@ -68,31 +68,30 @@ export async function injectOverlays(
         "position:fixed",
         "z-index:999999",
         "pointer-events:none",
-        "${hudPosition}:" + z(48),
+        ${JSON.stringify(hudPosition)} + ":" + z(48),
         "left:50%",
         "transform:translateX(-50%)",
         "display:flex",
         "gap:" + z(14),
         "padding:" + z(16) + " " + z(36),
-        "border-radius:" + z(${hudBorderRadius}),
-        "background:${hudBg}",
+        "border-radius:" + z(${Number(hudBorderRadius)}),
+        "background:" + ${JSON.stringify(hudBg)},
         "opacity:0",
       ].join(";");
       document.body.appendChild(keys);
 
       const style = document.createElement("style");
-      style.textContent = \`
-        .__demo-key {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: ${hudColor};
-          font-family: ${hudFontFamily};
-          font-size: \${${hudFontSize} / zoom}px;
-          font-weight: 500;
-          white-space: nowrap;
-        }
-      \`;
+      style.textContent =
+        ".__demo-key {" +
+        "display: inline-flex;" +
+        "align-items: center;" +
+        "justify-content: center;" +
+        "color:" + ${JSON.stringify(hudColor)} + ";" +
+        "font-family:" + ${JSON.stringify(hudFontFamily)} + ";" +
+        "font-size:" + (${Number(hudFontSize)} / zoom) + "px;" +
+        "font-weight: 500;" +
+        "white-space: nowrap;" +
+        "}";
       document.head.appendChild(style);
     })()`,
   });
