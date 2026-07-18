@@ -1,7 +1,8 @@
-import { ensureFfmpeg, extractThumbnail } from "@webreel/core";
 import {
   buildAutoZoomFilter,
   compose,
+  ensureFfmpeg,
+  extractThumbnail,
   type AutoZoomConfig,
   type TimelineData,
   type ZoomEvent,
