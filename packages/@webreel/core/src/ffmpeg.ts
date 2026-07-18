@@ -8,6 +8,7 @@ import {
   downloadFile,
   extractArchive,
   makeExecutable,
+  assertTrustedUrl,
 } from "./download.js";
 
 export const FFMPEG_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "ffmpeg");
@@ -15,6 +16,10 @@ export const FFMPEG_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "ffmpeg");
 // BtbN/FFmpeg-Builds: linked from ffmpeg.org, built via GitHub Actions.
 // Covers Linux (x64, arm64) and Windows (x64).
 const BTBN_BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest";
+// The initial request goes to github.com, which redirects to a signed
+// release-assets.githubusercontent.com URL; only the original github.com
+// URL is validated here (see assertTrustedUrl doc comment in download.ts).
+const BTBN_HOSTS = ["github.com"];
 
 export function btbnAssetName(): string | null {
   const { platform, arch } = process;
@@ -28,6 +33,7 @@ export function btbnAssetName(): string | null {
 // evermeet.cx: linked from ffmpeg.org, macOS x64 static builds.
 // Runs on ARM64 Macs via Rosetta 2.
 const EVERMEET_API = "https://evermeet.cx/ffmpeg/info/ffmpeg/release";
+const EVERMEET_HOSTS = ["evermeet.cx"];
 
 export function binaryName(): string {
   return process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
@@ -67,6 +73,8 @@ async function downloadBtbn(cacheDir: string): Promise<string> {
   if (!asset) throw new Error("No BtbN build for this platform");
 
   const url = `${BTBN_BASE}/${asset}`;
+  assertTrustedUrl(url, BTBN_HOSTS);
+
   await downloadAndExtract(url, cacheDir, "ffmpeg");
 
   const bin = binaryName();
@@ -79,10 +87,12 @@ async function downloadBtbn(cacheDir: string): Promise<string> {
 }
 
 async function downloadEvermeet(cacheDir: string): Promise<string> {
+  assertTrustedUrl(EVERMEET_API, EVERMEET_HOSTS);
   const info = (await fetchJson(EVERMEET_API)) as {
     download: { zip: { url: string } };
   };
   const url = info.download.zip.url;
+  assertTrustedUrl(url, EVERMEET_HOSTS);
   const archivePath = resolve(cacheDir, "_download.zip");
 
   await downloadFile(url, archivePath, "ffmpeg");
