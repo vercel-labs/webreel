@@ -50,7 +50,6 @@ export async function compositeRecording(opts: CompositeRecordingOptions): Promi
         zoomEvents,
         { width: timelineData.width, height: timelineData.height },
         timelineData.zoom ?? 1,
-        timelineData.frames.length / timelineData.fps,
         timelineData.fps,
         autoZoomCfg,
       )

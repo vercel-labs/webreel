@@ -97,21 +97,20 @@ describe("generateZoomKeyframes", () => {
     const kf = generateZoomKeyframes(
       [{ timeMs: 1000, box: { x: 100, y: 100, width: 200, height: 200 } }],
       VIEWPORT,
-      5,
       { enabled: false },
     );
     expect(kf).toEqual([]);
   });
 
   it("returns empty when no events", () => {
-    expect(generateZoomKeyframes([], VIEWPORT, 5, cfg)).toEqual([]);
+    expect(generateZoomKeyframes([], VIEWPORT, cfg)).toEqual([]);
   });
 
   it("generates approach/settle/hold/release keyframes for a single event", () => {
     const events: ZoomEvent[] = [
       { timeMs: 3000, box: { x: 500, y: 400, width: 200, height: 200 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 10, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     expect(kf.length).toBeGreaterThanOrEqual(5);
     expect(kf[0].timeS).toBe(0);
     expect(kf[0].w).toBe(VIEWPORT.width);
@@ -131,8 +130,8 @@ describe("generateZoomKeyframes", () => {
         url: "https://b.test/",
       },
     ];
-    const kfBoth = generateZoomKeyframes(events, VIEWPORT, 10, cfg);
-    const kfFirstOnly = generateZoomKeyframes([events[0]], VIEWPORT, 10, cfg);
+    const kfBoth = generateZoomKeyframes(events, VIEWPORT, cfg);
+    const kfFirstOnly = generateZoomKeyframes([events[0]], VIEWPORT, cfg);
     expect(kfBoth.length).toBe(kfFirstOnly.length);
   });
 
@@ -141,7 +140,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 2000, box: { x: 100, y: 100, width: 200, height: 200 } },
       { timeMs: 3000, box: { x: 900, y: 500, width: 200, height: 200 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 10, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const zoomedOuts = kf.filter((k) => k.w === VIEWPORT.width);
     // Two events, 1s gap (< sessionGapS=1.2) → single session → 3 full-view
     // keyframes (initial, approach start, final release).
@@ -153,7 +152,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 1000, box: { x: 100, y: 100, width: 200, height: 200 } },
       { timeMs: 9000, box: { x: 900, y: 500, width: 200, height: 200 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 15, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const zoomedOuts = kf.filter((k) => k.w === VIEWPORT.width);
     // Two separate sessions → 5 full-view keyframes (each session adds
     // approach-start + release, plus one shared initial at t=0).
@@ -166,7 +165,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 2000, box: { x: 900, y: 500, width: 200, height: 200 } },
       { timeMs: 8000, box: { x: 400, y: 300, width: 200, height: 200 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 20, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     for (let i = 1; i < kf.length; i++) {
       expect(kf[i].timeS).toBeGreaterThanOrEqual(kf[i - 1].timeS);
     }
@@ -179,7 +178,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 1000, box: { x: 100, y: 100, width: 200, height: 200 } },
       { timeMs: 7000, box: { x: 900, y: 500, width: 200, height: 200 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 12, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const zoomedOuts = kf.filter((k) => k.w === VIEWPORT.width);
     expect(zoomedOuts.length).toBe(5);
   });
@@ -193,7 +192,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 2500, box: { x: 200, y: 300, width: 200, height: 50 } },
       { timeMs: 5000, box: { x: 1000, y: 600, width: 200, height: 50 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 10, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const distinctCrops = new Set(
       kf.map((k) => `${k.x.toFixed(0)},${k.y.toFixed(0)},${k.w.toFixed(0)}`),
     );
@@ -209,7 +208,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 4500, box: { x: 800, y: 400, width: 200, height: 50 } },
       { timeMs: 4900, box: { x: 1500, y: 900, width: 200, height: 50 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 8, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const lastCropKf = [...kf].reverse().find((k) => k.w !== VIEWPORT.width)!;
     // B is centered around x=800; C around x=1500. The last kept crop should
     // be positioned for B, not C — its left edge should be well under 1000.
@@ -223,7 +222,7 @@ describe("generateZoomKeyframes", () => {
       { timeMs: 1000, box: { x: 100, y: 100, width: 800, height: 400 } },
       { timeMs: 2000, box: { x: 1500, y: 800, width: 80, height: 30 } },
     ];
-    const kf = generateZoomKeyframes(events, VIEWPORT, 5, cfg);
+    const kf = generateZoomKeyframes(events, VIEWPORT, cfg);
     const sessionCrops = kf.filter((k) => k.w !== VIEWPORT.width);
     const widths = new Set(sessionCrops.map((k) => k.w));
     expect(widths.size).toBe(1);
@@ -232,18 +231,18 @@ describe("generateZoomKeyframes", () => {
 
 describe("buildAutoZoomFilter", () => {
   it("returns null when disabled", () => {
-    expect(buildAutoZoomFilter([], VIEWPORT, 1, 5, 60, { enabled: false })).toBeNull();
+    expect(buildAutoZoomFilter([], VIEWPORT, 1, 60, { enabled: false })).toBeNull();
   });
 
   it("returns null when no events produce keyframes", () => {
-    expect(buildAutoZoomFilter([], VIEWPORT, 1, 5, 60, { enabled: true })).toBeNull();
+    expect(buildAutoZoomFilter([], VIEWPORT, 1, 60, { enabled: true })).toBeNull();
   });
 
   it("emits a zoompan filter string with expected params", () => {
     const events: ZoomEvent[] = [
       { timeMs: 2000, box: { x: 200, y: 200, width: 200, height: 200 } },
     ];
-    const filter = buildAutoZoomFilter(events, VIEWPORT, 1, 10, 60, {
+    const filter = buildAutoZoomFilter(events, VIEWPORT, 1, 60, {
       enabled: true,
     });
     expect(filter).not.toBeNull();
@@ -256,7 +255,7 @@ describe("buildAutoZoomFilter", () => {
     const events: ZoomEvent[] = [
       { timeMs: 2000, box: { x: 200, y: 200, width: 200, height: 200 } },
     ];
-    const filter = buildAutoZoomFilter(events, VIEWPORT, 1, 10, 60, {
+    const filter = buildAutoZoomFilter(events, VIEWPORT, 1, 60, {
       enabled: true,
     });
     expect(filter).not.toBeNull();
@@ -273,10 +272,10 @@ describe("buildAutoZoomFilter", () => {
     const events: ZoomEvent[] = [
       { timeMs: 2000, box: { x: 100, y: 100, width: 500, height: 300 } },
     ];
-    const filterAt1 = buildAutoZoomFilter(events, VIEWPORT, 1, 10, 60, {
+    const filterAt1 = buildAutoZoomFilter(events, VIEWPORT, 1, 60, {
       enabled: true,
     });
-    const filterAt2 = buildAutoZoomFilter(events, VIEWPORT, 2, 10, 60, {
+    const filterAt2 = buildAutoZoomFilter(events, VIEWPORT, 2, 60, {
       enabled: true,
     });
     expect(filterAt1).not.toBe(filterAt2);

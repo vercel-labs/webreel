@@ -118,7 +118,6 @@ export function computeCropForEvent(
 export function generateZoomKeyframes(
   events: ZoomEvent[],
   viewport: { width: number; height: number },
-  durationS: number,
   userCfg: AutoZoomConfig,
 ): ZoomKeyframe[] {
   if (!userCfg.enabled) return [];
@@ -270,7 +269,6 @@ export function buildAutoZoomFilter(
   events: ZoomEvent[],
   viewport: { width: number; height: number },
   cssZoom: number,
-  durationS: number,
   fps: number,
   userCfg: AutoZoomConfig,
 ): string | null {
@@ -286,7 +284,7 @@ export function buildAutoZoomFilter(
     },
   }));
 
-  const kf = generateZoomKeyframes(scaled, viewport, durationS, userCfg);
+  const kf = generateZoomKeyframes(scaled, viewport, userCfg);
   if (kf.length < 2) return null;
 
   if (process.env.WEBREEL_DEBUG_ZOOM) {
