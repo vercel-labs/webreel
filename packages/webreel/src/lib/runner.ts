@@ -290,8 +290,13 @@ export async function runVideo(
     await chrome.kill();
   });
 
+  let connectionLost: Error | null = null;
+
   try {
-    const client = await connectCDP(chrome.port);
+    const client = await connectCDP(chrome.port, (err) => {
+      connectionLost = err;
+      console.error(err.message);
+    });
     clientRef = client;
     await client.Page.enable();
     await client.Runtime.enable();
@@ -652,7 +657,11 @@ export async function runVideo(
           { cause: err },
         );
       }
+
+      if (connectionLost) throw connectionLost;
     }
+
+    if (connectionLost) throw connectionLost;
 
     if (recorder) {
       const cleanVideoPath = recorder.getTempVideoPath();

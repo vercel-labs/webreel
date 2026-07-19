@@ -1,5 +1,6 @@
 export type CDPClient = {
   close: () => Promise<void>;
+  on: (event: string, cb: (...args: unknown[]) => void) => void;
   Runtime: {
     enable: () => Promise<void>;
     evaluate: (params: {
