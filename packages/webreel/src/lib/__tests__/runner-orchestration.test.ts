@@ -131,7 +131,7 @@ describe("runVideo orchestration (happy path)", () => {
     await runVideo(config, { record: true, configDir });
 
     expect(launchChromeMock).toHaveBeenCalledTimes(1);
-    expect(connectCDPMock).toHaveBeenCalledWith(CHROME_PORT);
+    expect(connectCDPMock).toHaveBeenCalledWith(CHROME_PORT, expect.any(Function));
 
     expect(fakeClient.Emulation.setDeviceMetricsOverride).toHaveBeenCalledWith({
       width: 400,
