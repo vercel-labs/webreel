@@ -4,10 +4,13 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 import {
   fetchJson,
+  fetchText,
+  findSha256ForFile,
   downloadAndExtract,
   downloadFile,
   extractArchive,
   makeExecutable,
+  assertTrustedUrl,
 } from "./download.js";
 
 export const FFMPEG_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "ffmpeg");
@@ -15,6 +18,18 @@ export const FFMPEG_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "ffmpeg");
 // BtbN/FFmpeg-Builds: linked from ffmpeg.org, built via GitHub Actions.
 // Covers Linux (x64, arm64) and Windows (x64).
 const BTBN_BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest";
+// The initial request goes to github.com, which redirects to a signed
+// release-assets.githubusercontent.com URL; only the original github.com
+// URL is validated here (see assertTrustedUrl doc comment in download.ts).
+const BTBN_HOSTS = ["github.com"];
+// The "latest" release tag is a rolling pointer (the underlying build is
+// republished under the same tag/filenames), but it publishes a
+// checksums.sha256 asset alongside the binaries on every publish, keyed by
+// the exact filenames this module downloads — verified against the live
+// release. We fetch it from the same release at request time so the
+// checksum always matches whatever asset is currently live, without having
+// to pin to a versioned release tag (which uses different filenames).
+const BTBN_CHECKSUMS_URL = `${BTBN_BASE}/checksums.sha256`;
 
 export function btbnAssetName(): string | null {
   const { platform, arch } = process;
@@ -27,7 +42,12 @@ export function btbnAssetName(): string | null {
 
 // evermeet.cx: linked from ffmpeg.org, macOS x64 static builds.
 // Runs on ARM64 Macs via Rosetta 2.
+// The API response has no sha256/digest field (only a GPG .sig detached
+// signature URL, which we don't currently verify) — confirmed against the
+// live endpoint. Integrity for this path rests on HTTPS + host allowlisting
+// only; this is a known, accepted gap (see plan 010).
 const EVERMEET_API = "https://evermeet.cx/ffmpeg/info/ffmpeg/release";
+const EVERMEET_HOSTS = ["evermeet.cx"];
 
 export function binaryName(): string {
   return process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
@@ -67,7 +87,25 @@ async function downloadBtbn(cacheDir: string): Promise<string> {
   if (!asset) throw new Error("No BtbN build for this platform");
 
   const url = `${BTBN_BASE}/${asset}`;
-  await downloadAndExtract(url, cacheDir, "ffmpeg");
+  assertTrustedUrl(url, BTBN_HOSTS);
+
+  let expectedSha256: string | undefined;
+  try {
+    assertTrustedUrl(BTBN_CHECKSUMS_URL, BTBN_HOSTS);
+    const checksums = await fetchText(BTBN_CHECKSUMS_URL);
+    expectedSha256 = findSha256ForFile(checksums, asset) ?? undefined;
+    if (!expectedSha256) {
+      console.warn(
+        `No checksum entry for ${asset} in BtbN checksums.sha256; proceeding with URL allowlist only.`,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      `Failed to fetch BtbN checksums.sha256; proceeding with URL allowlist only: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  await downloadAndExtract(url, cacheDir, "ffmpeg", expectedSha256);
 
   const bin = binaryName();
   const found = findBinaryInDir(cacheDir, bin);
@@ -79,10 +117,12 @@ async function downloadBtbn(cacheDir: string): Promise<string> {
 }
 
 async function downloadEvermeet(cacheDir: string): Promise<string> {
+  assertTrustedUrl(EVERMEET_API, EVERMEET_HOSTS);
   const info = (await fetchJson(EVERMEET_API)) as {
     download: { zip: { url: string } };
   };
   const url = info.download.zip.url;
+  assertTrustedUrl(url, EVERMEET_HOSTS);
   const archivePath = resolve(cacheDir, "_download.zip");
 
   await downloadFile(url, archivePath, "ffmpeg");

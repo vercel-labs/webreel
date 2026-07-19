@@ -3,7 +3,7 @@ import { existsSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { resolve, join } from "node:path";
-import { fetchJson, downloadAndExtract } from "./download.js";
+import { fetchJson, downloadAndExtract, assertTrustedUrl } from "./download.js";
 import { killProcess } from "./process.js";
 
 export const CHROME_CACHE_DIR = resolve(homedir(), ".webreel", "bin", "chrome");
@@ -16,6 +16,14 @@ export const HEADLESS_SHELL_CACHE_DIR = resolve(
 
 const CfT_MANIFEST_URL =
   "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+
+// Chrome for Testing publishes no checksums alongside the manifest, so
+// binary integrity for this path rests on HTTPS + host allowlisting only.
+// The manifest itself is served from googlechromelabs.github.io; the actual
+// build archives it links to are served from storage.googleapis.com
+// (verified against a live manifest response).
+const CfT_MANIFEST_HOSTS = ["googlechromelabs.github.io"];
+const CfT_DOWNLOAD_HOSTS = ["storage.googleapis.com"];
 
 type CfTManifest = {
   channels: {
@@ -123,12 +131,16 @@ export async function ensureChrome(): Promise<string> {
   }
 
   try {
+    assertTrustedUrl(CfT_MANIFEST_URL, CfT_MANIFEST_HOSTS);
     const manifest = (await fetchJson(CfT_MANIFEST_URL)) as CfTManifest;
     const platform = cftPlatform();
     const entry = manifest.channels.Stable.downloads.chrome.find(
       (d) => d.platform === platform,
     );
     if (!entry) throw new Error(`No Chrome for Testing build for ${platform}`);
+    // No published hash for Chrome for Testing builds — HTTPS + host
+    // allowlist is the only integrity check available for this download.
+    assertTrustedUrl(entry.url, CfT_DOWNLOAD_HOSTS);
 
     await downloadAndExtract(entry.url, CHROME_CACHE_DIR, "Chrome for Testing");
 
@@ -156,11 +168,15 @@ export async function ensureHeadlessShell(): Promise<string> {
     if (cached) return cached;
   }
 
+  assertTrustedUrl(CfT_MANIFEST_URL, CfT_MANIFEST_HOSTS);
   const manifest = (await fetchJson(CfT_MANIFEST_URL)) as CfTManifest;
   const platform = cftPlatform();
   const entries = manifest.channels.Stable.downloads["chrome-headless-shell"];
   const entry = entries?.find((d) => d.platform === platform);
   if (!entry) throw new Error(`No chrome-headless-shell build for ${platform}`);
+  // No published hash for Chrome for Testing builds — HTTPS + host
+  // allowlist is the only integrity check available for this download.
+  assertTrustedUrl(entry.url, CfT_DOWNLOAD_HOSTS);
 
   await downloadAndExtract(entry.url, HEADLESS_SHELL_CACHE_DIR, "chrome-headless-shell");
 
