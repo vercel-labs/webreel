@@ -34,6 +34,8 @@ To override the auto-downloaded binaries, set these environment variables:
 - `CHROME_HEADLESS_PATH` - path to a chrome-headless-shell binary (used for recording)
 - `FFMPEG_PATH` - path to an ffmpeg binary
 
+Chrome launches with its sandbox enabled by default. Set `WEBREEL_NO_SANDBOX=1` to disable it if your environment requires it (for example, running as root in a container); it is also disabled automatically when running as root.
+
 If a recording fails with "No inspectable targets" or similar browser errors, the issue is almost certainly in the webreel config (wrong `waitFor`, missing element, timing), not a missing browser. Check the config and use `--verbose` to debug.
 
 ## .gitignore
