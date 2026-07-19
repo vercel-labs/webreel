@@ -219,7 +219,7 @@ All steps (except `pause`) accept an optional `delay` field (ms to wait after th
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) (v20+)
 - [pnpm](https://pnpm.io/)
 
 ### Setup
