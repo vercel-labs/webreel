@@ -119,6 +119,7 @@ export const recordCommand = new Command("record")
         console.log("\nWatching for changes...");
         let timer: ReturnType<typeof setTimeout> | null = null;
         let recordingInProgress: Promise<void> | null = null;
+        let rerunRequested = false;
         const watchers: FSWatcher[] = [];
 
         const closeAllWatchers = () => {
@@ -139,6 +140,15 @@ export const recordCommand = new Command("record")
 
           timer = setTimeout(async () => {
             timer = null;
+
+            if (recordingInProgress) {
+              rerunRequested = true;
+              console.log(
+                "\nChange detected, queueing re-record until current recording finishes.",
+              );
+              return;
+            }
+
             console.log("\nRe-recording...");
             let latestConfig: WebreelConfig | null = null;
             const run = (async () => {
@@ -158,6 +168,10 @@ export const recordCommand = new Command("record")
               } finally {
                 recordingInProgress = null;
                 setupWatchers(latestConfig ?? webreelConfig);
+                if (rerunRequested) {
+                  rerunRequested = false;
+                  onFileChange();
+                }
               }
             })();
             recordingInProgress = run;
