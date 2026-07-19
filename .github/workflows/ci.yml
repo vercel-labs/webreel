@@ -33,6 +33,11 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Schema drift check
+        run: |
+          pnpm --filter webreel run schema:generate
+          git diff --exit-code apps/docs/public/schema/v1.json
+
       - name: Test
         run: pnpm test -- --coverage
 
