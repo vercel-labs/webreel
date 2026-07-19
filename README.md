@@ -116,6 +116,8 @@ webreel record hero login
 webreel record -c custom.config.json
 webreel record --watch
 webreel record --verbose
+webreel record --dry-run
+webreel record --frames
 ```
 
 ### Preview
@@ -188,32 +190,38 @@ All steps (except `pause`) accept an optional `delay` field (ms to wait after th
 
 #### Top-level
 
-| Field          | Default   | Description                                  |
-| -------------- | --------- | -------------------------------------------- |
-| `$schema`      | -         | JSON Schema URL for IDE autocompletion       |
-| `outDir`       | `videos/` | Default output directory for videos          |
-| `baseUrl`      | `""`      | Prepended to relative video URLs             |
-| `viewport`     | 1080x1080 | Default browser viewport dimensions          |
-| `theme`        | -         | Default cursor and HUD overlay customization |
-| `include`      | -         | Array of step files prepended to all videos  |
-| `defaultDelay` | -         | Default delay (ms) after each step           |
-| `videos`       | required  | Object mapping video names to their configs  |
+| Field          | Default         | Description                                                  |
+| -------------- | --------------- | ------------------------------------------------------------ |
+| `$schema`      | -               | JSON Schema URL for IDE autocompletion                       |
+| `outDir`       | `videos/`       | Default output directory for videos                          |
+| `baseUrl`      | `""`            | Prepended to relative video URLs                             |
+| `viewport`     | 1080x1080       | Default browser viewport dimensions                          |
+| `theme`        | -               | Default cursor and HUD overlay customization                 |
+| `include`      | -               | Array of step files prepended to all videos                  |
+| `defaultDelay` | -               | Default delay (ms) after each step                           |
+| `clickDwell`   | random 80-180ms | Milliseconds the cursor pauses before clicking (0 = instant) |
+| `sfx`          | -               | Sound effects configuration for click and keystroke sounds   |
+| `videos`       | required        | Object mapping video names to their configs                  |
 
 #### Per-video
 
-| Field          | Default       | Description                                            |
-| -------------- | ------------- | ------------------------------------------------------ |
-| `url`          | required      | URL to navigate to                                     |
-| `baseUrl`      | inherited     | Prepended to relative URLs                             |
-| `viewport`     | inherited     | Browser viewport dimensions                            |
-| `zoom`         | -             | CSS zoom level applied to the page                     |
-| `waitFor`      | -             | CSS selector to wait for before start                  |
-| `output`       | `<name>.mp4`  | Output file path (.mp4, .gif, or .webm)                |
-| `thumbnail`    | `{ time: 0 }` | Object with `time` (seconds) or `enabled: false`       |
-| `include`      | inherited     | Array of paths to JSON files whose steps are prepended |
-| `theme`        | inherited     | Cursor and HUD overlay customization                   |
-| `defaultDelay` | inherited     | Default delay (ms) after each step                     |
-| `autoZoom`     | `false`       | Cinematic zoom into each action (bool or object)       |
+| Field          | Default       | Description                                                |
+| -------------- | ------------- | ---------------------------------------------------------- |
+| `url`          | required      | URL to navigate to                                         |
+| `baseUrl`      | inherited     | Prepended to relative URLs                                 |
+| `viewport`     | inherited     | Browser viewport dimensions                                |
+| `zoom`         | -             | CSS zoom level applied to the page                         |
+| `fps`          | `60`          | Recording frame rate (1-120)                               |
+| `quality`      | `80`          | Output quality (1-100); higher values produce larger files |
+| `waitFor`      | -             | CSS selector to wait for before start                      |
+| `output`       | `<name>.mp4`  | Output file path (.mp4, .gif, or .webm)                    |
+| `thumbnail`    | `{ time: 0 }` | Object with `time` (seconds) or `enabled: false`           |
+| `include`      | inherited     | Array of paths to JSON files whose steps are prepended     |
+| `theme`        | inherited     | Cursor and HUD overlay customization                       |
+| `defaultDelay` | inherited     | Default delay (ms) after each step                         |
+| `clickDwell`   | inherited     | Milliseconds the cursor pauses before clicking             |
+| `sfx`          | inherited     | Sound effects configuration for click and keystroke sounds |
+| `autoZoom`     | `false`       | Cinematic zoom into each action (bool or object)           |
 
 ## Development
 
