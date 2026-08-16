@@ -9,6 +9,18 @@ import { ensureFfmpeg } from "./ffmpeg.js";
 import { finalizeMp4, finalizeWebm, finalizeGif, type SfxConfig } from "./media.js";
 import type { InteractionTimeline, TimelineData } from "./timeline.js";
 
+/** Region of the page to capture, in CSS pixels, and the scale to capture it at. */
+export interface CaptureArea {
+  width: number;
+  height: number;
+  scale: number;
+}
+
+interface CaptureClip extends CaptureArea {
+  x: number;
+  y: number;
+}
+
 export class Recorder {
   private outputPath = "";
   private frameCount = 0;
@@ -31,11 +43,18 @@ export class Recorder {
   private framesDir: string | null = null;
   private stopResolve: (() => void) | null = null;
   private stoppedPromise: Promise<void> | null = null;
+  private captureClip: CaptureClip | null = null;
 
   constructor(
     outputWidth = DEFAULT_VIEWPORT_SIZE,
     outputHeight = DEFAULT_VIEWPORT_SIZE,
-    options?: { sfx?: SfxConfig; fps?: number; crf?: number; framesDir?: string },
+    options?: {
+      sfx?: SfxConfig;
+      fps?: number;
+      crf?: number;
+      framesDir?: string;
+      capture?: CaptureArea;
+    },
   ) {
     this.outputWidth = outputWidth;
     this.outputHeight = outputHeight;
@@ -43,10 +62,33 @@ export class Recorder {
     this.fps = options?.fps ?? TARGET_FPS;
     this.frameMs = 1000 / this.fps;
     this.crf = options?.crf ?? 18;
+    if (options?.capture && options.capture.scale !== 1) {
+      this.captureClip = {
+        x: 0,
+        y: 0,
+        width: options.capture.width,
+        height: options.capture.height,
+        scale: options.capture.scale,
+      };
+    }
     if (options?.framesDir) {
       this.framesDir = options.framesDir;
       mkdirSync(this.framesDir, { recursive: true });
     }
+  }
+
+  /**
+   * Parameters for one frame capture. The zoom is applied here, via clip.scale,
+   * rather than by emulating a device scale factor, which corrupts input
+   * coordinates while the capture loop runs.
+   */
+  getCaptureParams(): Record<string, unknown> {
+    return {
+      format: "jpeg",
+      quality: 60,
+      optimizeForSpeed: true,
+      ...(this.captureClip ? { clip: this.captureClip } : {}),
+    };
   }
 
   setTimeline(timeline: InteractionTimeline): void {
@@ -164,9 +206,9 @@ export class Recorder {
 
     while (this.running) {
       try {
-        if (this.timeline) {
-          this.timeline.tick();
-        } else {
+        // A page-drawn cursor has to move before the pixels are taken; the
+        // composited overlay is advanced after the capture instead (see below).
+        if (!this.timeline) {
           const evalResult = await this.raceStop(
             client.Runtime.evaluate({
               expression: "window.__tickCursor&&window.__tickCursor()",
@@ -174,12 +216,9 @@ export class Recorder {
           );
           if (!evalResult) break;
         }
+
         const screenshotResult = await this.raceStop(
-          client.Page.captureScreenshot({
-            format: "jpeg",
-            quality: 60,
-            optimizeForSpeed: true,
-          }),
+          client.Page.captureScreenshot(this.getCaptureParams()),
         );
         if (!screenshotResult) break;
 
@@ -188,6 +227,9 @@ export class Recorder {
         const elapsed = now - lastFrameTime;
         const frameSlots = Math.min(3, Math.max(1, Math.round(elapsed / this.frameMs)));
 
+        // Duplicates stand in for time that has already passed, so they keep
+        // the previous cursor state; only the frame these pixels belong to
+        // advances it.
         if (frameSlots > 1) {
           for (let i = 0; i < frameSlots - 1; i++) {
             if (this.timeline) this.timeline.tickDuplicate();
@@ -195,6 +237,13 @@ export class Recorder {
             this.frameCount++;
           }
         }
+
+        // captureScreenshot resolves with pixels sampled at the moment it
+        // returns rather than when it was called, so the overlay cursor is
+        // advanced here. Advancing before the capture dates the cursor in every
+        // frame one round trip (tens of milliseconds) behind the UI drawn in
+        // the same frame, which reads as the cursor lagging during drags.
+        if (this.timeline) this.timeline.tick();
 
         await this.writeFrame(buffer);
         this.frameCount++;
