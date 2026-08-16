@@ -195,6 +195,7 @@ All steps (except `pause`) accept an optional `delay` field (ms to wait after th
 | `theme`        | -         | Default cursor and HUD overlay customization |
 | `include`      | -         | Array of step files prepended to all videos  |
 | `defaultDelay` | -         | Default delay (ms) after each step           |
+| `cursorSpeed`  | `1`       | Multiplier on how fast the cursor travels    |
 | `videos`       | required  | Object mapping video names to their configs  |
 
 #### Per-video
@@ -211,6 +212,7 @@ All steps (except `pause`) accept an optional `delay` field (ms to wait after th
 | `include`      | inherited     | Array of paths to JSON files whose steps are prepended |
 | `theme`        | inherited     | Cursor and HUD overlay customization                   |
 | `defaultDelay` | inherited     | Default delay (ms) after each step                     |
+| `cursorSpeed`  | inherited     | Multiplier on how fast the cursor travels              |
 
 ## Development
 

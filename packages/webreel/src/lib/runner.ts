@@ -148,6 +148,7 @@ export async function runVideo(
   const ctx = new RecordingContext();
   ctx.resetCursorPosition(cssWidth, cssHeight);
   if (config.clickDwell !== undefined) ctx.setClickDwell(config.clickDwell);
+  if (config.cursorSpeed !== undefined) ctx.setCursorSpeed(config.cursorSpeed);
   const initialCursor = ctx.getCursorPosition();
 
   const chrome = await launchChrome({ headless: shouldRecord });

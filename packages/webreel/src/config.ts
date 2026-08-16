@@ -33,6 +33,7 @@ export interface InputWebreelConfig {
   include?: string[];
   defaultDelay?: number;
   clickDwell?: number;
+  cursorSpeed?: number;
   videos: Record<string, InputVideoConfig>;
 }
 

@@ -142,6 +142,7 @@ Config files are auto-discovered as `webreel.config.json` (or `.ts`, `.mts`, `.j
 | `include`      | -           | Array of step file paths prepended to all videos |
 | `defaultDelay` | -           | Default delay (ms) appended after each step      |
 | `clickDwell`   | -           | Cursor dwell time (ms) before a click            |
+| `cursorSpeed`  | `1`         | Multiplier on cursor travel speed                |
 
 ### Per-video fields
 
@@ -160,6 +161,7 @@ Each entry in the `videos` map supports:
 | `sfx`          | inherited      | Override sound effects                             |
 | `defaultDelay` | inherited      | Override default delay                             |
 | `clickDwell`   | inherited      | Override click dwell                               |
+| `cursorSpeed`  | inherited      | Override cursor travel speed                       |
 | `fps`          | `60`           | Frame rate                                         |
 | `quality`      | `80`           | Encoding quality (1-100)                           |
 | `steps`        | required       | Array of step objects                              |
