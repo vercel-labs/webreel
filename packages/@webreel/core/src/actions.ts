@@ -675,6 +675,29 @@ export async function typeText(
   }
 }
 
+/**
+ * Strips the attributes that make a cloned drag ghost answer to the same
+ * selectors as the element it was cloned from. Serialised into the page, so it
+ * has to stay self-contained.
+ */
+export function stripGhostIdentity(root: {
+  removeAttribute(name: string): void;
+  attributes: ArrayLike<{ name: string }>;
+  querySelectorAll(selector: string): ArrayLike<{
+    removeAttribute(name: string): void;
+    attributes: ArrayLike<{ name: string }>;
+  }>;
+}): void {
+  const nodes = [root, ...Array.from(root.querySelectorAll("*"))];
+  for (const node of nodes) {
+    node.removeAttribute("id");
+    node.removeAttribute("name");
+    for (const attr of Array.from(node.attributes)) {
+      if (attr.name.startsWith("data-")) node.removeAttribute(attr.name);
+    }
+  }
+}
+
 export async function dragFromTo(
   ctx: RecordingContext,
   client: CDPClient,
@@ -701,7 +724,12 @@ export async function dragFromTo(
       const src = el?.closest("[draggable]") || el;
       if (src) {
         const ghost = src.cloneNode(true);
+        // The clone carries every attribute the source had, so until these are
+        // stripped it answers to the same selectors as the element being
+        // dragged and can shadow it in a later step's lookup.
+        (${stripGhostIdentity.toString()})(ghost);
         ghost.id = "__demo-drag-ghost";
+        ghost.setAttribute("aria-hidden", "true");
         const rect = src.getBoundingClientRect();
         ghost.style.cssText = [
           "position:fixed",
@@ -837,8 +865,16 @@ export async function dragFromTo(
 export async function captureScreenshot(
   client: CDPClient,
   outputPath: string,
+  area?: { width: number; height: number; scale: number },
 ): Promise<void> {
-  const { data } = await client.Page.captureScreenshot({ format: "png" });
+  const { data } = await client.Page.captureScreenshot({
+    format: "png",
+    ...(area && area.scale !== 1
+      ? {
+          clip: { x: 0, y: 0, width: area.width, height: area.height, scale: area.scale },
+        }
+      : {}),
+  });
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, Buffer.from(data, "base64"));
 }
