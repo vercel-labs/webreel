@@ -190,6 +190,20 @@ Navigate the browser to a new URL.
 { "action": "navigate", "url": "/settings" }
 ```
 
+## navigateHref
+
+Read an element's `href` attribute and navigate the browser to that URL. Use this for generated links that change each run, such as preview, deploy, or published report URLs.
+
+| Field      | Type             | Required | Description                                      |
+| ---------- | ---------------- | -------- | ------------------------------------------------ |
+| `action`   | `"navigateHref"` | yes      |                                                  |
+| `selector` | string           | yes      | CSS selector for an element with an `href` value |
+
+```json
+{ "action": "wait", "selector": "a.preview-link" }
+{ "action": "navigateHref", "selector": "a.preview-link" }
+```
+
 ## select
 
 Select a value in a `<select>` dropdown.
