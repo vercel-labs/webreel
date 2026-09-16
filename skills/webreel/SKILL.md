@@ -162,6 +162,7 @@ Each entry in the `videos` map supports:
 | `clickDwell`   | inherited      | Override click dwell                               |
 | `fps`          | `60`           | Frame rate                                         |
 | `quality`      | `80`           | Encoding quality (1-100)                           |
+| `autoZoom`     | `false`        | Cinematic zoom into each action (bool or object)   |
 | `steps`        | required       | Array of step objects                              |
 
 ### Videos map
@@ -250,6 +251,63 @@ Customize cursor appearance and keystroke HUD:
 - `cursor.size` - cursor size in pixels
 - `cursor.hotspot` - `"top-left"` (default) or `"center"`
 - `hud.position` - `"top"` or `"bottom"`
+
+## Autozoom
+
+Autozoom cinematically zooms into each user action so small UI elements are readable on mobile-sized viewports. It runs as part of the existing compositing pass — no extra encoding — and uses the bounding box of each `click`, `type`, `hover`, `moveTo`, `drag`, or `select` target to decide where and when to zoom.
+
+Enable with defaults:
+
+```json
+{ "autoZoom": true }
+```
+
+Or tune individual parameters:
+
+```json
+{
+  "autoZoom": {
+    "enabled": true,
+    "approachS": 0.5,
+    "settleBeforeS": 0.15,
+    "holdAfterS": 0.3,
+    "releaseS": 0.5,
+    "paddingRatio": 0.3,
+    "minZoomRatio": 0.6,
+    "skipZoomRatio": 0.75,
+    "sessionGapS": 4.0
+  }
+}
+```
+
+| Field           | Default | Description                                                                                                                                                                                   |
+| --------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`       | `true`  | Turn autozoom on/off without removing config                                                                                                                                                  |
+| `approachS`     | `0.5`   | Seconds spent zooming IN (full → target)                                                                                                                                                      |
+| `settleBeforeS` | `0.15`  | Seconds the camera sits on the target BEFORE the action fires                                                                                                                                 |
+| `holdAfterS`    | `0.3`   | Seconds the camera holds AFTER the last action in a session                                                                                                                                   |
+| `releaseS`      | `0.5`   | Seconds spent zooming OUT (target → full)                                                                                                                                                     |
+| `paddingRatio`  | `0.3`   | Fraction of bbox size added as padding around the target                                                                                                                                      |
+| `minZoomRatio`  | `0.6`   | Crop is never smaller than this fraction of the viewport (max zoom ~1.67x)                                                                                                                    |
+| `skipZoomRatio` | `0.75`  | Skip zoom when the computed crop would be this fraction or larger                                                                                                                             |
+| `sessionGapS`   | `4.0`   | Events within this many seconds share one pan session (no zoom-out)                                                                                                                           |
+| `minPanS`       | `0.8`   | Skip panning to an intermediate target if the pan would be shorter than this — prevents blink-and-miss transitions when actions fire in quick succession (e.g. a `select` right after typing) |
+
+**How it behaves:**
+
+- The camera starts zooming `approachS + settleBeforeS` seconds BEFORE each action, so it's already settled on the target when the click or keystroke fires.
+- Multiple actions within `sessionGapS` are treated as one session — the camera pans between them instead of zooming all the way out and back in.
+- Click/drag zoom targets automatically include any UI that appears as a result of the click (dropdown menus, modals, tooltips). A `MutationObserver` watches the DOM during each click step and unions newly-visible elements into the zoom bbox, so the camera frames the whole widget rather than just the trigger.
+- Clicks that trigger a page navigation (URL change) are skipped; the page content changes unpredictably, and the zoom timing would be off.
+- Full-width targets (crop ≥ `skipZoomRatio`) are skipped to avoid imperceptible zooms.
+
+**When NOT to use autozoom:**
+
+- Page-scroll-only demos (no discrete click targets).
+- Videos whose interactions are all `key` presses without a `target` (no bbox to zoom to).
+- Videos recorded at already-small viewports where the content is already readable.
+
+**Pair with `zoom` for best results on small viewports:** the static `zoom` field upscales the captured viewport for readability; `autoZoom` then cinematically zooms FURTHER into each action.
 
 ## Common patterns
 

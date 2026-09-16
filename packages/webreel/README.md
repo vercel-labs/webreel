@@ -1,13 +1,15 @@
-# webreel
+# @lgariv/webreel
+
+> **Fork notice.** This is a fork of [vercel-labs/webreel](https://github.com/vercel-labs/webreel) with an added cinematic **autozoom** feature (session-based pan grouping, spatial sub-grouping, mutation-observer-based reveal detection). Original work © Vercel, licensed under Apache 2.0. All modifications are in [`lgariv-dn/webreel`](https://github.com/lgariv-dn/webreel).
 
 CLI that records scripted browser videos as MP4, GIF, or WebM files from JSON configs.
 
-Define steps (clicks, key presses, drags, pauses) and webreel drives a headless Chrome instance, captures screenshots at ~60fps, adds cursor animation, keystroke overlays, and sound effects, and encodes the result with ffmpeg.
+Define steps (clicks, key presses, drags, pauses) and webreel drives a headless Chrome instance, captures screenshots at ~60fps, adds cursor animation, keystroke overlays, sound effects, and an optional cinematic autozoom, then encodes the result with ffmpeg.
 
 ## Installation
 
 ```bash
-npm install webreel
+npm install @lgariv/webreel
 ```
 
 ## Quick Start

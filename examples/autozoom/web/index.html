@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Autozoom Demo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1/dist/fonts/geist-sans/style.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        background: #09090b;
+        color: #fafafa;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        width: 440px;
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 14px;
+        padding: 28px 28px 24px;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: #71717a;
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: #a1a1aa;
+        margin-bottom: 6px;
+      }
+      .row {
+        margin-bottom: 14px;
+      }
+      input[type="text"],
+      input[type="email"] {
+        width: 100%;
+        background: #18181b;
+        color: #fafafa;
+        border: 1px solid #27272a;
+        border-radius: 8px;
+        padding: 9px 11px;
+        font: inherit;
+        font-size: 13px;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      input:focus {
+        border-color: #71717a;
+      }
+
+      /* Custom dropdown — native <select> can't be opened via synthetic
+         events, so we use a button + menu so the demo shows the dropdown
+         opening and an option being chosen. */
+      .select-wrapper {
+        position: relative;
+      }
+      .select-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #18181b;
+        color: #fafafa;
+        border: 1px solid #27272a;
+        border-radius: 8px;
+        padding: 9px 11px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .select-btn[aria-expanded="true"] {
+        border-color: #71717a;
+      }
+      .select-btn .placeholder {
+        color: #71717a;
+      }
+      .select-btn .chevron {
+        color: #71717a;
+        font-size: 11px;
+        transition: transform 0.15s;
+      }
+      .select-btn[aria-expanded="true"] .chevron {
+        transform: rotate(180deg);
+      }
+      .select-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #18181b;
+        border: 1px solid #27272a;
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        z-index: 10;
+        opacity: 0;
+        transform: translateY(-4px);
+        pointer-events: none;
+        transition:
+          opacity 0.12s,
+          transform 0.12s;
+      }
+      .select-menu.open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      .select-option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        color: #fafafa;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .select-option:hover {
+        background: #27272a;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .btn {
+        flex: 1;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 9px 12px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: #fafafa;
+        color: #09090b;
+      }
+      .btn-secondary {
+        background: transparent;
+        color: #a1a1aa;
+        border-color: #27272a;
+      }
+      .status {
+        margin-top: 14px;
+        font-size: 12px;
+        color: #71717a;
+        text-align: center;
+        min-height: 16px;
+      }
+      .status.saved {
+        color: #4ade80;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Profile settings</h1>
+      <p class="sub">Small UI elements that benefit from autozoom.</p>
+      <div class="row">
+        <label for="name">Full name</label>
+        <input id="name" type="text" placeholder="e.g. Ada Lovelace" />
+      </div>
+      <div class="row">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@company.com" />
+      </div>
+      <div class="row">
+        <label for="role">Role</label>
+        <div class="select-wrapper">
+          <button
+            type="button"
+            id="role-btn"
+            class="select-btn"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+          >
+            <span id="role-label" class="placeholder">Choose…</span>
+            <span class="chevron">▾</span>
+          </button>
+          <div id="role-menu" class="select-menu" role="listbox">
+            <button type="button" class="select-option" data-value="engineer">
+              Engineer
+            </button>
+            <button type="button" class="select-option" data-value="designer">
+              Designer
+            </button>
+            <button type="button" class="select-option" data-value="pm">
+              Product manager
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" id="cancel">Cancel</button>
+        <button class="btn btn-primary" id="save">Save changes</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById("role-btn");
+        var menu = document.getElementById("role-menu");
+        var label = document.getElementById("role-label");
+        var options = menu.querySelectorAll(".select-option");
+
+        function openMenu() {
+          menu.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+        }
+        function closeMenu() {
+          menu.classList.remove("open");
+          btn.setAttribute("aria-expanded", "false");
+        }
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (btn.getAttribute("aria-expanded") === "true") closeMenu();
+          else openMenu();
+        });
+        options.forEach(function (opt) {
+          opt.addEventListener("click", function () {
+            label.textContent = opt.textContent.trim();
+            label.classList.remove("placeholder");
+            btn.dataset.value = opt.dataset.value;
+            closeMenu();
+          });
+        });
+        document.addEventListener("click", function (e) {
+          if (!btn.contains(e.target) && !menu.contains(e.target)) closeMenu();
+        });
+
+        document.getElementById("save").addEventListener("click", function () {
+          var s = document.getElementById("status");
+          s.textContent = "Changes saved";
+          s.classList.add("saved");
+        });
+      })();
+    </script>
+  </body>
+</html>

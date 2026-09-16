@@ -1,15 +1,15 @@
 {
-  "name": "@webreel/core",
-  "version": "0.1.4",
-  "description": "Core recording engine for webreel - headless Chrome capture, cursor animation, and video compositing.",
-  "homepage": "https://webreel.dev",
+  "name": "@lgariv/webreel-core",
+  "version": "0.1.4-beta-20260418T165223Z",
+  "description": "Core recording engine for @lgariv/webreel (fork of vercel-labs/webreel) — headless Chrome capture, cursor animation, video compositing, autozoom.",
+  "homepage": "https://github.com/lgariv-dn/webreel",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/webreel.git",
+    "url": "https://github.com/lgariv-dn/webreel.git",
     "directory": "packages/@webreel/core"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/webreel/issues"
+    "url": "https://github.com/lgariv-dn/webreel/issues"
   },
   "keywords": [
     "video",
@@ -37,7 +37,9 @@
   },
   "files": [
     "dist",
-    "assets"
+    "assets",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "clean": "rm -rf dist",

@@ -5,6 +5,8 @@ import {
   type CDPClient,
   type BoundingBox,
   type OverlayTheme,
+  type AutoZoomConfig,
+  type ZoomEvent,
   RecordingContext,
   connectCDP,
   launchChrome,
@@ -27,8 +29,13 @@ import {
   ensureFfmpeg,
   extractThumbnail,
   moveFileSync,
+  buildAutoZoomFilter,
+  unionBboxes,
+  installRevealObserver,
+  collectReveals,
+  type RevealObserverHandle,
   DEFAULT_VIEWPORT_SIZE,
-} from "@webreel/core";
+} from "@lgariv/webreel-core";
 import type { VideoConfig, Step, ElementTarget } from "./types.js";
 
 export function formatStep(i: number, step: Step): string {
@@ -107,6 +114,118 @@ export function randomPointInBox(
     x: box.x + box.width * (center + Math.random() * spread),
     y: box.y + box.height * (center + Math.random() * spread),
   };
+}
+
+export function normalizeAutoZoom(value: VideoConfig["autoZoom"]): AutoZoomConfig {
+  if (value === true) return { enabled: true };
+  if (value === false || value === undefined) return { enabled: false };
+  return { ...value, enabled: value.enabled ?? true };
+}
+
+async function captureZoomEvent(
+  client: CDPClient,
+  step: Step,
+  timeline: InteractionTimeline,
+  preEventCount: number,
+  fps: number,
+  previousBox: BoundingBox | null,
+  reveals: BoundingBox[] = [],
+): Promise<ZoomEvent | null> {
+  let box: BoundingBox | null = null;
+
+  switch (step.action) {
+    case "navigate":
+    case "pause":
+    case "wait":
+    case "screenshot":
+    case "scroll":
+      return null;
+
+    case "click":
+    case "moveTo":
+    case "hover":
+    case "select": {
+      if (step.selector) {
+        box = await findElementBySelector(client, step.selector, step.within);
+      } else if (step.text) {
+        box = await findElementByText(client, step.text, step.within);
+      }
+      break;
+    }
+
+    case "type": {
+      if (step.selector) {
+        box = await findElementBySelector(client, step.selector, step.within);
+      } else if (previousBox) {
+        box = previousBox;
+      }
+      break;
+    }
+
+    case "key": {
+      if (step.target) {
+        const sel = typeof step.target === "string" ? step.target : step.target.selector;
+        const within = typeof step.target === "string" ? undefined : step.target.within;
+        if (sel) box = await findElementBySelector(client, sel, within);
+      } else if (previousBox) {
+        box = previousBox;
+      }
+      break;
+    }
+
+    case "drag": {
+      if (step.from.selector) {
+        box = await findElementBySelector(client, step.from.selector, step.from.within);
+      } else if (step.from.text) {
+        box = await findElementByText(client, step.from.text, step.from.within);
+      }
+      break;
+    }
+  }
+
+  if (!box) return null;
+
+  // For click/drag, union the click target's bbox with any elements that
+  // newly appeared or grew in size during the step (dropdowns, modals,
+  // tooltips). This makes the zoom frame the whole widget rather than just
+  // the trigger — matching Cursor's behavior for button→modal interactions.
+  if ((step.action === "click" || step.action === "drag") && reveals.length > 0) {
+    const unioned = unionBboxes([box, ...reveals]);
+    if (unioned) box = unioned;
+  }
+
+  // Pick the timestamp from SoundEvents that fired DURING this step so the
+  // zoom anticipation is anchored on the actual interaction moment (not the
+  // step's end-of-postDelay time, which lags the click by 1–2 seconds for
+  // steps with cursor animation).
+  const newEvents = timeline.getEvents().slice(preEventCount);
+  const fallbackMs = (timeline.getFrameCount() / fps) * 1000;
+  let timeMs: number;
+  let holdUntilMs: number | undefined;
+  if (step.action === "click" || step.action === "drag") {
+    const firstClick = newEvents.find((e) => e.type === "click");
+    timeMs = firstClick ? firstClick.timeMs : fallbackMs;
+  } else if (step.action === "type" || step.action === "key") {
+    // Anchor the approach on the FIRST event (click that lands on the input)
+    // so the camera is already zoomed in when typing begins. `holdUntilMs`
+    // extends the hold through the LAST keystroke, so the camera stays on
+    // the field for the entire typing span.
+    const firstEvent = newEvents[0];
+    const lastEvent = newEvents[newEvents.length - 1];
+    timeMs = firstEvent ? firstEvent.timeMs : fallbackMs;
+    if (lastEvent && lastEvent !== firstEvent) {
+      holdUntilMs = lastEvent.timeMs;
+    }
+  } else {
+    timeMs = fallbackMs;
+  }
+
+  const { result } = await client.Runtime.evaluate({
+    expression: "location.href",
+    returnByValue: true,
+  });
+  const url = typeof result.value === "string" ? result.value : undefined;
+  return { timeMs, box, url, holdUntilMs };
 }
 
 export async function extractThumbnailIfConfigured(
@@ -205,6 +324,8 @@ export async function runVideo(
     }
 
     let timeline: InteractionTimeline | null = null;
+    const autoZoomCfg = normalizeAutoZoom(config.autoZoom);
+    const zoomEvents: ZoomEvent[] = [];
     const outputPath =
       config.output ?? resolve(configDir, "videos", `${config.name}.mp4`);
 
@@ -248,6 +369,18 @@ export async function runVideo(
       const step = config.steps[i];
       if (verbose) console.log(formatStep(i, step));
 
+      let preEventCount = 0;
+      let revealHandle: RevealObserverHandle | null = null;
+      if (shouldRecord && autoZoomCfg.enabled && timeline) {
+        preEventCount = timeline.getEvents().length;
+        // Observer installed only for interactions that can reveal UI.
+        // Collected after postDelay so any animations have had time to
+        // settle.
+        if (step.action === "click" || step.action === "drag") {
+          revealHandle = await installRevealObserver(client);
+        }
+      }
+
       try {
         switch (step.action) {
           case "pause":
@@ -284,7 +417,13 @@ export async function runVideo(
 
           case "type": {
             if (step.selector) {
-              const box = await resolveTarget(client, step);
+              // For type steps, `step.text` is the text to type — NOT a DOM
+              // matcher. Pass only the selector to resolveTarget so it doesn't
+              // try to find an element containing the typed text.
+              const box = await resolveTarget(client, {
+                selector: step.selector,
+                within: step.within,
+              });
               const { x: tx, y: ty } = randomPointInBox(box);
               await clickAt(ctx, client, tx, ty);
               await client.Runtime.evaluate({
@@ -406,6 +545,35 @@ export async function runVideo(
         if (postDelay !== undefined && postDelay > 0) {
           await pause(postDelay);
         }
+        if (shouldRecord && autoZoomCfg.enabled && timeline) {
+          const fps = config.fps ?? timeline.toJSON().fps;
+          const previousBox =
+            zoomEvents.length > 0 ? zoomEvents[zoomEvents.length - 1].box : null;
+          const reveals: BoundingBox[] = revealHandle
+            ? await collectReveals(client, revealHandle)
+            : [];
+          if (process.env.WEBREEL_DEBUG_ZOOM && revealHandle) {
+            const summary = reveals
+              .map(
+                (r) =>
+                  `${r.x.toFixed(0)},${r.y.toFixed(0)} ${r.width.toFixed(0)}×${r.height.toFixed(0)}`,
+              )
+              .join(" | ");
+            console.error(
+              `reveals (${step.action}): ${reveals.length}${summary ? " " + summary : ""}`,
+            );
+          }
+          const ze = await captureZoomEvent(
+            client,
+            step,
+            timeline,
+            preEventCount,
+            fps,
+            previousBox,
+            reveals,
+          );
+          if (ze) zoomEvents.push(ze);
+        }
       } catch (err) {
         throw new Error(
           `Step ${i} (${step.action}) failed at ${url}: ${err instanceof Error ? err.message : String(err)}`,
@@ -421,6 +589,9 @@ export async function runVideo(
 
       if (timeline) {
         const timelineData = timeline.toJSON();
+        if (zoomEvents.length > 0) {
+          timelineData.zoomEvents = zoomEvents;
+        }
         const metadataDir = resolve(configDir, ".webreel", "timelines");
         mkdirSync(metadataDir, { recursive: true });
         writeFileSync(
@@ -437,7 +608,33 @@ export async function runVideo(
         ctx.setTimeline(null);
         mkdirSync(dirname(outputPath), { recursive: true });
         console.log(`Compositing overlays...`);
-        await compose(rawVideoPath, timelineData, outputPath, { sfx: config.sfx });
+        const zoomFilter = autoZoomCfg.enabled
+          ? buildAutoZoomFilter(
+              zoomEvents,
+              { width: timelineData.width, height: timelineData.height },
+              timelineData.zoom ?? 1,
+              timelineData.frames.length / timelineData.fps,
+              timelineData.fps,
+              autoZoomCfg,
+            )
+          : null;
+        if (zoomFilter) {
+          console.log(
+            `Applying autozoom (${zoomEvents.length} event${zoomEvents.length === 1 ? "" : "s"})`,
+          );
+          if (verbose) {
+            for (const e of zoomEvents) {
+              const box = e.box;
+              console.log(
+                `  t=${(e.timeMs / 1000).toFixed(2)}s box=${box.x.toFixed(0)},${box.y.toFixed(0)} ${box.width.toFixed(0)}×${box.height.toFixed(0)}`,
+              );
+            }
+          }
+        }
+        await compose(rawVideoPath, timelineData, outputPath, {
+          sfx: config.sfx,
+          zoomFilter: zoomFilter ?? undefined,
+        });
       }
       await extractThumbnailIfConfigured(config, outputPath);
 

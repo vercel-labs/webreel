@@ -321,3 +321,47 @@ Set the `output` field to a `.webm` extension.
   }
 }
 ```
+
+## Autozoom
+
+Cinematically zoom into each click, type, or hover. The camera eases in before the action, holds through it, then releases. Consecutive actions within `sessionGapS` share a single zoom session (camera pans between them instead of zooming out).
+
+Enable with defaults:
+
+```json
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "videos": {
+    "autozoom": {
+      "url": "./web/index.html",
+      "viewport": { "width": 1920, "height": 1080 },
+      "zoom": 2,
+      "waitFor": ".card",
+      "autoZoom": true,
+      "defaultDelay": 500,
+      "steps": [
+        { "action": "click", "selector": "#name" },
+        { "action": "type", "text": "Jane Doe", "selector": "#name" },
+        { "action": "click", "selector": "#email" },
+        { "action": "type", "text": "jane@acme.com", "selector": "#email" },
+        { "action": "select", "selector": "#role", "value": "engineer" },
+        { "action": "click", "selector": "#save", "delay": 1200 }
+      ]
+    }
+  }
+}
+```
+
+Override specific timing or thresholds with an object:
+
+```json
+{
+  "autoZoom": {
+    "enabled": true,
+    "approachS": 1.2,
+    "holdAfterS": 0.8,
+    "paddingRatio": 0.4,
+    "sessionGapS": 3.5
+  }
+}
+```
