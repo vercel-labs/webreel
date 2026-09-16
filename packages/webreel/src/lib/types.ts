@@ -174,6 +174,7 @@ import type { SfxConfig } from "@webreel/core";
 
 export interface VideoConfig {
   name: string;
+  configDir: string;
   url: string;
   baseUrl?: string;
   viewport?: { width: number; height: number };
@@ -202,4 +203,9 @@ export interface WebreelConfig {
   defaultDelay?: number;
   clickDwell?: number;
   videos: VideoConfig[];
+}
+
+export interface FullConfig {
+  videos: VideoConfig[];
+  videoSources: Map<string, string>;
 }

@@ -1,96 +1,80 @@
 import { describe, it, expect } from "vitest";
-import { resolve, dirname } from "node:path";
+import { resolve } from "node:path";
 import { collectIncludePaths } from "../record.js";
-import type { WebreelConfig } from "../../lib/types.js";
+import type { FullConfig, VideoConfig } from "../../lib/types.js";
 
 describe("collectIncludePaths", () => {
-  const configPath = "/project/webreel.config.json";
-  const configDir = dirname(configPath);
+  const configDir = "/project";
 
-  function makeConfig(overrides: Partial<WebreelConfig> = {}): WebreelConfig {
+  function makeFull(videos: Partial<VideoConfig>[]): FullConfig {
     return {
-      videos: [
-        {
-          name: "test",
-          url: "https://example.com",
-          steps: [],
-        },
-      ],
-      ...overrides,
+      videos: videos.map((v, i) => ({
+        name: `v${i}`,
+        configDir,
+        url: "https://example.com",
+        steps: [],
+        ...v,
+      })) as VideoConfig[],
+      videoSources: new Map(),
     };
   }
 
   it("returns empty array when no includes exist", () => {
-    const config = makeConfig();
-    expect(collectIncludePaths(config, configPath)).toEqual([]);
+    const full = makeFull([{}]);
+    expect(collectIncludePaths(full)).toEqual([]);
   });
 
-  it("resolves top-level include paths relative to config dir", () => {
-    const config = makeConfig({ include: ["steps/setup.json"] });
-    const result = collectIncludePaths(config, configPath);
+  it("resolves per-video include paths relative to video configDir", () => {
+    const full = makeFull([{ include: ["steps/setup.json"] }]);
+    const result = collectIncludePaths(full);
     expect(result).toEqual([resolve(configDir, "steps/setup.json")]);
   });
 
-  it("resolves per-video include paths", () => {
-    const config = makeConfig({
-      videos: [
-        {
-          name: "v1",
-          url: "https://example.com",
-          steps: [],
-          include: ["steps/v1-setup.json"],
-        },
-      ],
-    });
-    const result = collectIncludePaths(config, configPath);
-    expect(result).toEqual([resolve(configDir, "steps/v1-setup.json")]);
-  });
-
-  it("combines top-level and per-video includes", () => {
-    const config = makeConfig({
-      include: ["steps/shared.json"],
-      videos: [
-        {
-          name: "v1",
-          url: "https://example.com",
-          steps: [],
-          include: ["steps/v1.json"],
-        },
-        {
-          name: "v2",
-          url: "https://example.com",
-          steps: [],
-          include: ["steps/v2.json"],
-        },
-      ],
-    });
-    const result = collectIncludePaths(config, configPath);
+  it("combines includes from multiple videos", () => {
+    const full = makeFull([
+      { include: ["steps/v1.json"] },
+      { include: ["steps/v2.json"] },
+    ]);
+    const result = collectIncludePaths(full);
     expect(result).toEqual([
-      resolve(configDir, "steps/shared.json"),
       resolve(configDir, "steps/v1.json"),
       resolve(configDir, "steps/v2.json"),
     ]);
   });
 
   it("deduplicates identical paths", () => {
-    const config = makeConfig({
-      include: ["steps/setup.json"],
+    const full = makeFull([
+      { include: ["steps/setup.json"] },
+      { include: ["steps/setup.json"] },
+    ]);
+    const result = collectIncludePaths(full);
+    expect(result).toEqual([resolve(configDir, "steps/setup.json")]);
+  });
+
+  it("uses different configDir per video", () => {
+    const full: FullConfig = {
       videos: [
         {
-          name: "v1",
+          name: "a",
+          configDir: "/projectA",
           url: "https://example.com",
           steps: [],
-          include: ["steps/setup.json"],
-        },
+          include: ["steps/a.json"],
+        } as VideoConfig,
         {
-          name: "v2",
+          name: "b",
+          configDir: "/projectB",
           url: "https://example.com",
           steps: [],
-          include: ["steps/setup.json"],
-        },
+          include: ["steps/b.json"],
+        } as VideoConfig,
       ],
-    });
-    const result = collectIncludePaths(config, configPath);
-    expect(result).toEqual([resolve(configDir, "steps/setup.json")]);
+      videoSources: new Map(),
+    };
+    const result = collectIncludePaths(full);
+    expect(result).toEqual([
+      resolve("/projectA", "steps/a.json"),
+      resolve("/projectB", "steps/b.json"),
+    ]);
   });
 });
