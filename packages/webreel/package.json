@@ -35,15 +35,18 @@
     }
   },
   "bin": {
-    "webreel": "./dist/index.js"
+    "webreel": "./bin/webreel.js"
   },
   "engines": {
     "node": ">=18"
   },
   "files": [
+    "bin",
+    "scripts",
     "dist"
   ],
   "scripts": {
+    "postinstall": "node scripts/postinstall.js",
     "clean": "rm -rf dist",
     "build": "rm -rf dist && tsc",
     "type-check": "tsc --noEmit",

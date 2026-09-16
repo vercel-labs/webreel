@@ -1,0 +1,93 @@
+name: Release Compositor
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux
+            platform: webreel-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-linux
+            platform: webreel-linux-aarch64
+          - os: macos-latest
+            target: x86_64-macos
+            platform: webreel-darwin-x86_64
+          - os: macos-latest
+            target: aarch64-macos
+            platform: webreel-darwin-aarch64
+          - os: windows-latest
+            target: x86_64-windows
+            platform: webreel-windows-x86_64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: goto-bus-stop/setup-zig@abea47f85e598557f500fa1fd2ab7464fcb39406 # v2
+        with:
+          version: 0.15.2
+
+      - name: Fetch deps
+        working-directory: packages/@webreel/compositor
+        run: bash scripts/fetch-deps.sh
+
+      - name: Build
+        working-directory: packages/@webreel/compositor
+        run: |
+          zig build \
+            -Doptimize=ReleaseFast \
+            -Dtarget=${{ matrix.target }} \
+            -Dexe-name=webreel
+
+      - name: Package archive
+        working-directory: packages/@webreel/compositor
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ -f zig-out/bin/webreel.exe ]; then
+            cp zig-out/bin/webreel.exe dist/webreel.exe
+            tar czf dist/${{ matrix.platform }}.tar.gz -C dist webreel.exe
+            rm dist/webreel.exe
+          else
+            cp zig-out/bin/webreel dist/webreel
+            tar czf dist/${{ matrix.platform }}.tar.gz -C dist webreel
+            rm dist/webreel
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.platform }}
+          path: packages/@webreel/compositor/dist/${{ matrix.platform }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum *.tar.gz > checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

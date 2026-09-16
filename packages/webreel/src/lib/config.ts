@@ -92,7 +92,17 @@ function resolveVideoDefaults(
   defaults: Partial<
     Pick<
       WebreelConfig,
-      "baseUrl" | "viewport" | "theme" | "include" | "defaultDelay" | "clickDwell" | "sfx"
+      | "baseUrl"
+      | "viewport"
+      | "screen"
+      | "window"
+      | "background"
+      | "theme"
+      | "include"
+      | "defaultDelay"
+      | "clickDwell"
+      | "sfx"
+      | "colorScheme"
     >
   >,
   outDir: string | undefined,
@@ -101,6 +111,10 @@ function resolveVideoDefaults(
   const resolved = { ...video };
   if (!resolved.baseUrl && defaults.baseUrl) resolved.baseUrl = defaults.baseUrl;
   if (!resolved.viewport && defaults.viewport) resolved.viewport = defaults.viewport;
+  if (!resolved.screen && defaults.screen) resolved.screen = defaults.screen;
+  if (!resolved.window && defaults.window) resolved.window = defaults.window;
+  if (!resolved.background && defaults.background)
+    resolved.background = defaults.background;
   if (defaults.theme) {
     resolved.theme = {
       cursor: { ...defaults.theme.cursor, ...resolved.theme?.cursor },
@@ -110,6 +124,8 @@ function resolveVideoDefaults(
   if (!resolved.include && defaults.include) resolved.include = defaults.include;
   if (!resolved.sfx && defaults.sfx) resolved.sfx = defaults.sfx;
   resolved.sfx = resolveSfxPaths(resolved.sfx, configDir);
+  if (resolved.colorScheme === undefined && defaults.colorScheme !== undefined)
+    resolved.colorScheme = defaults.colorScheme;
   if (resolved.defaultDelay === undefined && defaults.defaultDelay !== undefined)
     resolved.defaultDelay = defaults.defaultDelay;
   if (resolved.clickDwell === undefined && defaults.clickDwell !== undefined)
@@ -172,8 +188,12 @@ async function buildConfigFromParsed(
   const defaults = {
     baseUrl: parsed.baseUrl as string | undefined,
     viewport: resolveViewportValue(parsed.viewport),
+    screen: parsed.screen as WebreelConfig["screen"],
+    window: parsed.window as WebreelConfig["window"],
+    background: parsed.background as WebreelConfig["background"],
     theme: parsed.theme as WebreelConfig["theme"],
     sfx: parsed.sfx as WebreelConfig["sfx"],
+    colorScheme: parsed.colorScheme as WebreelConfig["colorScheme"],
     include: parsed.include as string[] | undefined,
     defaultDelay: parsed.defaultDelay as number | undefined,
     clickDwell: parsed.clickDwell as number | undefined,
@@ -196,8 +216,12 @@ async function buildConfigFromParsed(
     outDir: parsed.outDir as string | undefined,
     baseUrl: parsed.baseUrl as string | undefined,
     viewport: resolveViewportValue(parsed.viewport),
+    screen: parsed.screen as WebreelConfig["screen"],
+    window: parsed.window as WebreelConfig["window"],
+    background: parsed.background as WebreelConfig["background"],
     theme: parsed.theme as WebreelConfig["theme"],
     sfx: parsed.sfx as WebreelConfig["sfx"],
+    colorScheme: parsed.colorScheme as WebreelConfig["colorScheme"],
     include: parsed.include as string[] | undefined,
     defaultDelay: parsed.defaultDelay as number | undefined,
     clickDwell: parsed.clickDwell as number | undefined,
@@ -297,8 +321,12 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "outDir",
   "baseUrl",
   "viewport",
+  "screen",
+  "window",
+  "background",
   "theme",
   "sfx",
+  "colorScheme",
   "include",
   "defaultDelay",
   "clickDwell",
@@ -309,6 +337,9 @@ const KNOWN_VIDEO_KEYS = new Set([
   "url",
   "baseUrl",
   "viewport",
+  "screen",
+  "window",
+  "background",
   "zoom",
   "fps",
   "quality",
@@ -318,6 +349,7 @@ const KNOWN_VIDEO_KEYS = new Set([
   "include",
   "theme",
   "sfx",
+  "colorScheme",
   "defaultDelay",
   "clickDwell",
   "steps",

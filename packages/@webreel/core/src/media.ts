@@ -162,7 +162,7 @@ export function finalizeWebm(
     "-c:v",
     "libvpx-vp9",
     "-crf",
-    "30",
+    "24",
     "-b:v",
     "0",
     "-pix_fmt",

@@ -10,6 +10,7 @@ dist
 !.env.example
 coverage
 *.tsbuildinfo
+next-env.d.ts
 *.log
 package-lock.json
 demo-reel.mp4

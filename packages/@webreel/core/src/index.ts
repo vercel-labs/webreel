@@ -4,7 +4,6 @@ export {
   FRAME_MS,
   DEFAULT_VIEWPORT_SIZE,
   OFFSCREEN_MARGIN,
-  CAPTURE_CYCLE_MS,
   DEFAULT_CURSOR_SVG,
   DEFAULT_CURSOR_SIZE,
   DEFAULT_HUD_THEME,
@@ -36,9 +35,14 @@ export {
   dragFromTo,
   captureScreenshot,
 } from "./actions.js";
-export { Recorder } from "./recorder.js";
-export { InteractionTimeline, type TimelineData } from "./timeline.js";
-export { compose, type ComposeOptions } from "./compositor.js";
+export { Recorder, type FrameSink } from "./recorder.js";
+export {
+  InteractionTimeline,
+  type TimelineData,
+  type TimelineWindowConfig,
+  type TimelineBackgroundConfig,
+} from "./timeline.js";
+export { compose, prepareStreamCompositor, type ComposeOptions } from "./compositor.js";
 export { ensureFfmpeg, FFMPEG_CACHE_DIR } from "./ffmpeg.js";
 export { extractThumbnail, type SfxConfig } from "./media.js";
 export { moveFileSync } from "./fs.js";

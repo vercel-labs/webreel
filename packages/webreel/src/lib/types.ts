@@ -169,6 +169,32 @@ export const VIEWPORT_PRESETS: Record<string, { width: number; height: number }>
   "galaxy-s24": { width: 360, height: 780 },
 };
 
+export interface WindowConfig {
+  titlebar?: {
+    visible?: boolean;
+    title?: string;
+    stoplight?: boolean;
+    height?: number;
+    background?: string;
+  };
+  borderRadius?: number;
+  shadow?:
+    | boolean
+    | {
+        blur?: number;
+        color?: string;
+        offsetY?: number;
+      };
+  position?: "center" | { x: number; y: number };
+}
+
+export interface BackgroundConfig {
+  type: "solid" | "gradient" | "image";
+  color?: string;
+  gradient?: { from: string; to: string; angle?: number };
+  image?: string;
+}
+
 export type { SfxConfig } from "@webreel/core";
 import type { SfxConfig } from "@webreel/core";
 
@@ -184,8 +210,12 @@ export interface VideoConfig {
   output?: string;
   thumbnail?: { time?: number; enabled?: boolean };
   include?: string[];
+  screen?: { width: number; height: number };
+  window?: WindowConfig;
+  background?: BackgroundConfig;
   theme?: ThemeConfig;
   sfx?: SfxConfig;
+  colorScheme?: "light" | "dark";
   defaultDelay?: number;
   clickDwell?: number;
   steps: Step[];
@@ -196,8 +226,12 @@ export interface WebreelConfig {
   outDir?: string;
   baseUrl?: string;
   viewport?: { width: number; height: number };
+  screen?: { width: number; height: number };
+  window?: WindowConfig;
+  background?: BackgroundConfig;
   theme?: ThemeConfig;
   sfx?: SfxConfig;
+  colorScheme?: "light" | "dark";
   include?: string[];
   defaultDelay?: number;
   clickDwell?: number;

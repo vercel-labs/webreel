@@ -1,5 +1,6 @@
 import { resolve, dirname } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 import {
   type CDPClient,
@@ -24,6 +25,7 @@ import {
   Recorder,
   InteractionTimeline,
   compose,
+  prepareStreamCompositor,
   ensureFfmpeg,
   extractThumbnail,
   moveFileSync,
@@ -73,22 +75,29 @@ export function resolveKeyTarget(target: string | ElementTarget): string {
 async function resolveTarget(
   client: CDPClient,
   opts: { text?: string; selector?: string; within?: string },
+  timeoutMs = 10000,
 ): Promise<BoundingBox> {
   if (!opts.text && !opts.selector) {
     throw new Error(`resolveTarget requires "text" or "selector"`);
   }
+  const start = Date.now();
   let box: BoundingBox | null = null;
-  if (opts.text) {
-    box = await findElementByText(client, opts.text, opts.within);
-  } else if (opts.selector) {
-    box = await findElementBySelector(client, opts.selector, opts.within);
+  while (Date.now() - start < timeoutMs) {
+    try {
+      if (opts.text) {
+        box = await findElementByText(client, opts.text, opts.within);
+      } else if (opts.selector) {
+        box = await findElementBySelector(client, opts.selector, opts.within);
+      }
+    } catch {
+      // CDP call may fail during page navigation; retry
+    }
+    if (box && box.width > 0 && box.height > 0) return box;
+    await pause(200);
   }
-  if (!box) {
-    const target = opts.text ? `text="${opts.text}"` : `selector="${opts.selector}"`;
-    const scope = opts.within ? ` within "${opts.within}"` : "";
-    throw new Error(`Element not found: ${target}${scope}`);
-  }
-  return box;
+  const target = opts.text ? `text="${opts.text}"` : `selector="${opts.selector}"`;
+  const scope = opts.within ? ` within "${opts.within}"` : "";
+  throw new Error(`Element not found after ${timeoutMs}ms: ${target}${scope}`);
 }
 
 export function resolveUrl(url: string, baseUrl: string, configDir: string): string {
@@ -142,11 +151,9 @@ export async function runVideo(
   const width = config.viewport?.width ?? DEFAULT_VIEWPORT_SIZE;
   const height = config.viewport?.height ?? DEFAULT_VIEWPORT_SIZE;
   const zoom = config.zoom ?? 1;
-  const cssWidth = Math.round(width / zoom);
-  const cssHeight = Math.round(height / zoom);
 
   const ctx = new RecordingContext();
-  ctx.resetCursorPosition(cssWidth, cssHeight);
+  ctx.resetCursorPosition(width, height);
   if (config.clickDwell !== undefined) ctx.setClickDwell(config.clickDwell);
   const initialCursor = ctx.getCursorPosition();
 
@@ -160,11 +167,17 @@ export async function runVideo(
     await client.Page.enable();
     await client.Runtime.enable();
     await client.Emulation.setDeviceMetricsOverride({
-      width: cssWidth,
-      height: cssHeight,
-      deviceScaleFactor: zoom,
+      width,
+      height,
+      deviceScaleFactor: shouldRecord ? 1 : zoom,
       mobile: false,
     });
+
+    if (config.colorScheme) {
+      await client.Emulation.setEmulatedMedia({
+        features: [{ name: "prefers-color-scheme", value: config.colorScheme }],
+      });
+    }
 
     const baseUrl = config.baseUrl ?? "";
     const url = resolveUrl(config.url, baseUrl, configDir);
@@ -211,13 +224,15 @@ export async function runVideo(
     if (shouldRecord) {
       ctx.setMode("record");
       timeline = new InteractionTimeline(width, height, {
-        zoom,
         fps: config.fps,
         initialCursor,
         cursorSvg,
         cursorSize: cursorConfig?.size,
         cursorHotspot: cursorConfig?.hotspot,
         hud: config.theme?.hud,
+        screen: config.screen,
+        window: config.window,
+        background: config.background,
       });
       ctx.setTimeline(timeline);
 
@@ -235,6 +250,24 @@ export async function runVideo(
         sfx: config.sfx,
       });
       recorder.setTimeline(timeline);
+
+      try {
+        const streamWorkDir = resolve(homedir(), ".webreel");
+        mkdirSync(streamWorkDir, { recursive: true });
+        const streamTempPath = resolve(streamWorkDir, `_stream_${Date.now()}.mp4`);
+        const streamSink = await prepareStreamCompositor(
+          timeline.toJSON(),
+          streamTempPath,
+          { crf, sfx: config.sfx },
+        );
+        if (streamSink) {
+          recorder.setStreamSink(streamSink, streamTempPath);
+          console.log("Using single-pass streaming compositor");
+        }
+      } catch {
+        // Fall back to multi-pass pipeline
+      }
+
       await recorder.start(client, outputPath, ctx);
     } else {
       ctx.setMode("preview");
@@ -417,6 +450,7 @@ export async function runVideo(
     if (recorder) {
       const cleanVideoPath = recorder.getTempVideoPath();
       await recorder.stop();
+      const composedInline = recorder.isComposedInline();
       recorder = null;
 
       if (timeline) {
@@ -428,16 +462,20 @@ export async function runVideo(
           JSON.stringify(timelineData),
         );
 
-        const rawDir = resolve(configDir, ".webreel", "raw");
-        mkdirSync(rawDir, { recursive: true });
-        const rawVideoPath = resolve(rawDir, `${config.name}.mp4`);
-        moveFileSync(cleanVideoPath, rawVideoPath);
+        if (!composedInline) {
+          const rawDir = resolve(configDir, ".webreel", "raw");
+          mkdirSync(rawDir, { recursive: true });
+          const rawVideoPath = resolve(rawDir, `${config.name}.mp4`);
+          moveFileSync(cleanVideoPath, rawVideoPath);
 
-        ctx.setMode("preview");
-        ctx.setTimeline(null);
-        mkdirSync(dirname(outputPath), { recursive: true });
-        console.log(`Compositing overlays...`);
-        await compose(rawVideoPath, timelineData, outputPath, { sfx: config.sfx });
+          ctx.setMode("preview");
+          ctx.setTimeline(null);
+          mkdirSync(dirname(outputPath), { recursive: true });
+          console.log(`Compositing overlays...`);
+          await compose(rawVideoPath, timelineData, outputPath, {
+            sfx: config.sfx,
+          });
+        }
       }
       await extractThumbnailIfConfigured(config, outputPath);
 
