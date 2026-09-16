@@ -48,6 +48,12 @@ export type CDPClient = {
   };
   DOM: {
     enable: () => Promise<void>;
+    getDocument: (params: { depth?: number }) => Promise<{ root: { nodeId: number } }>;
+    querySelector: (params: {
+      nodeId: number;
+      selector: string;
+    }) => Promise<{ nodeId: number }>;
+    setFileInputFiles: (params: { nodeId: number; files: string[] }) => Promise<void>;
   };
 };
 
