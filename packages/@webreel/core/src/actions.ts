@@ -19,6 +19,7 @@ export class RecordingContext {
   private _cursorX = -OFFSCREEN_MARGIN;
   private _cursorY = -OFFSCREEN_MARGIN;
   private _clickDwell: number | undefined;
+  private _cursorSpeed = 1;
 
   get mode(): "record" | "preview" {
     return this._mode;
@@ -84,6 +85,15 @@ export class RecordingContext {
 
   setClickDwell(ms: number | undefined): void {
     this._clickDwell = ms;
+  }
+
+  /** Multiplier on how fast the cursor travels. 2 covers ground twice as fast. */
+  setCursorSpeed(speed: number | undefined): void {
+    this._cursorSpeed = speed && speed > 0 ? speed : 1;
+  }
+
+  get cursorSpeed(): number {
+    return this._cursorSpeed;
   }
 
   getClickDwellMs(): number {
@@ -742,7 +752,7 @@ export async function dragFromTo(
   await pause(150);
 
   const dist = Math.sqrt((tx - fx) * (tx - fx) + (ty - fy) * (ty - fy));
-  const { steps, delayMs } = computeDragTiming(dist);
+  const { steps, delayMs } = computeDragTiming(dist, ctx.cursorSpeed);
   const waypoints = computeEasedPath(fx, fy, tx, ty, steps);
 
   for (const wp of waypoints) {

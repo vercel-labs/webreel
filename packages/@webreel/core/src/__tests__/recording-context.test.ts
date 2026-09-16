@@ -50,3 +50,26 @@ describe("RecordingContext", () => {
     expect(events).toEqual(["click"]);
   });
 });
+
+describe("RecordingContext cursor speed", () => {
+  it("defaults to 1", () => {
+    expect(new RecordingContext().cursorSpeed).toBe(1);
+  });
+
+  it("takes a positive multiplier", () => {
+    const ctx = new RecordingContext();
+    ctx.setCursorSpeed(2.5);
+    expect(ctx.cursorSpeed).toBe(2.5);
+  });
+
+  it("falls back to 1 for undefined or nonsense values", () => {
+    const ctx = new RecordingContext();
+    ctx.setCursorSpeed(2);
+    ctx.setCursorSpeed(undefined);
+    expect(ctx.cursorSpeed).toBe(1);
+    ctx.setCursorSpeed(0);
+    expect(ctx.cursorSpeed).toBe(1);
+    ctx.setCursorSpeed(-3);
+    expect(ctx.cursorSpeed).toBe(1);
+  });
+});

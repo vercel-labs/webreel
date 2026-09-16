@@ -126,6 +126,16 @@ These fields apply as defaults to all videos and can be overridden per-video.
     </tr>
     <tr>
       <td>
+        <code>cursorSpeed</code>
+      </td>
+      <td>1</td>
+      <td>
+        Multiplier on how fast the cursor travels between targets. <code>2</code> covers
+        the same ground in half the time.
+      </td>
+    </tr>
+    <tr>
+      <td>
         <code>sfx</code>
       </td>
       <td>-</td>
@@ -259,6 +269,13 @@ Each key in the `videos` object is the video name (used as the default output fi
     </tr>
     <tr>
       <td>
+        <code>cursorSpeed</code>
+      </td>
+      <td>inherited</td>
+      <td>Multiplier on how fast the cursor travels</td>
+    </tr>
+    <tr>
+      <td>
         <code>sfx</code>
       </td>
       <td>inherited</td>
@@ -305,6 +322,25 @@ When the cursor reaches its target, it pauses briefly before clicking, just like
     "hero": {
       "url": "/",
       "clickDwell": 0,
+      "steps": [{ "action": "click", "text": "Get Started" }]
+    }
+  }
+}
+```
+
+## cursorSpeed
+
+Cursor travel is timed from the distance it covers, so long moves take longer than
+short ones. `cursorSpeed` scales that: `2` covers the same ground in half the time,
+`0.5` takes twice as long. Typing speed, click dwell and step delays are unaffected.
+
+```json
+{
+  "cursorSpeed": 1.75,
+  "videos": {
+    "hero": {
+      "url": "/",
+      "cursorSpeed": 1,
       "steps": [{ "action": "click", "text": "Get Started" }]
     }
   }
