@@ -159,6 +159,27 @@ export async function runVideo(
     clientRef = client;
     await client.Page.enable();
     await client.Runtime.enable();
+    // In headless recording mode, --enable-begin-frame-control means Chrome
+    // won't render anything on its own. We start a background frame pump that
+    // keeps the page alive (JS execution, animations) until the Recorder
+    // takes over with its own beginFrame calls in captureLoop.
+    let framePumpRunning = false;
+    let framePumpBusy = false;
+    let framePumpTimer: ReturnType<typeof setInterval> | null = null;
+    if (shouldRecord) {
+      await client.HeadlessExperimental.enable();
+      framePumpRunning = true;
+      framePumpTimer = setInterval(async () => {
+        if (!framePumpRunning || framePumpBusy) return;
+        framePumpBusy = true;
+        try {
+          await client.HeadlessExperimental.beginFrame();
+        } catch {
+          // Client may be closed or recorder may have taken over
+        }
+        framePumpBusy = false;
+      }, 16);
+    }
     await client.Emulation.setDeviceMetricsOverride({
       width: cssWidth,
       height: cssHeight,
@@ -235,6 +256,19 @@ export async function runVideo(
         sfx: config.sfx,
       });
       recorder.setTimeline(timeline);
+
+      // Stop the background frame pump before handing control to the
+      // recorder's captureLoop, which will call beginFrame itself.
+      framePumpRunning = false;
+      if (framePumpTimer) {
+        clearInterval(framePumpTimer);
+        framePumpTimer = null;
+      }
+      // Wait for any in-flight beginFrame to finish
+      while (framePumpBusy) {
+        await pause(5);
+      }
+
       await recorder.start(client, outputPath, ctx);
     } else {
       ctx.setMode("preview");
