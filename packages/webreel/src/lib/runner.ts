@@ -284,7 +284,7 @@ export async function runVideo(
 
           case "type": {
             if (step.selector) {
-              const box = await resolveTarget(client, step);
+              const box = await resolveTarget(client, { selector: step.selector, within: step.within });
               const { x: tx, y: ty } = randomPointInBox(box);
               await clickAt(ctx, client, tx, ty);
               await client.Runtime.evaluate({
