@@ -121,6 +121,15 @@ export interface StepSelect {
   description?: string;
 }
 
+export interface StepUpload {
+  action: "upload";
+  selector: string;
+  filePath: string;
+  label?: string;
+  delay?: number;
+  description?: string;
+}
+
 export type Step =
   | StepPause
   | StepClick
@@ -133,7 +142,8 @@ export type Step =
   | StepScreenshot
   | StepNavigate
   | StepHover
-  | StepSelect;
+  | StepSelect
+  | StepUpload;
 
 export interface CursorConfig {
   image?: string;
