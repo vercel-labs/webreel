@@ -73,6 +73,7 @@ export function resolveKeyTarget(target: string | ElementTarget): string {
 async function resolveTarget(
   client: CDPClient,
   opts: { text?: string; selector?: string; within?: string },
+  role?: string,
 ): Promise<BoundingBox> {
   if (!opts.text && !opts.selector) {
     throw new Error(`resolveTarget requires "text" or "selector"`);
@@ -86,7 +87,8 @@ async function resolveTarget(
   if (!box) {
     const target = opts.text ? `text="${opts.text}"` : `selector="${opts.selector}"`;
     const scope = opts.within ? ` within "${opts.within}"` : "";
-    throw new Error(`Element not found: ${target}${scope}`);
+    const which = role ? ` (${role})` : "";
+    throw new Error(`Element not found${which}: ${target}${scope}`);
   }
   return box;
 }
@@ -159,10 +161,15 @@ export async function runVideo(
     clientRef = client;
     await client.Page.enable();
     await client.Runtime.enable();
+    // The device scale factor stays at 1 and the zoom is applied when each
+    // frame is captured instead. Emulating a non-1 scale factor makes Chrome
+    // treat Input.dispatchMouseEvent coordinates as device pixels for as long
+    // as the capture loop is running, so every synthetic pointer event lands at
+    // coordinates/zoom.
     await client.Emulation.setDeviceMetricsOverride({
       width: cssWidth,
       height: cssHeight,
-      deviceScaleFactor: zoom,
+      deviceScaleFactor: 1,
       mobile: false,
     });
 
@@ -233,6 +240,7 @@ export async function runVideo(
         crf,
         framesDir,
         sfx: config.sfx,
+        capture: { width: cssWidth, height: cssHeight, scale: zoom },
       });
       recorder.setTimeline(timeline);
       await recorder.start(client, outputPath, ctx);
@@ -276,8 +284,8 @@ export async function runVideo(
           }
 
           case "drag": {
-            const fromBox = await resolveTarget(client, step.from);
-            const toBox = await resolveTarget(client, step.to);
+            const fromBox = await resolveTarget(client, step.from, "drag from");
+            const toBox = await resolveTarget(client, step.to, "drag to");
             await dragFromTo(ctx, client, fromBox, toBox);
             break;
           }
@@ -340,7 +348,11 @@ export async function runVideo(
           }
 
           case "screenshot": {
-            await captureScreenshot(client, resolve(configDir, step.output));
+            await captureScreenshot(client, resolve(configDir, step.output), {
+              width: cssWidth,
+              height: cssHeight,
+              scale: zoom,
+            });
             break;
           }
 
