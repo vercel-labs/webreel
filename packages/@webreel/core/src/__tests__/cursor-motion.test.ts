@@ -43,3 +43,27 @@ describe("computeDragTiming", () => {
     expect(delayMs).toBeGreaterThan(0);
   });
 });
+
+describe("computeDragTiming speed", () => {
+  it("takes about half as long at twice the speed", () => {
+    // The jitter term is +/-20ms, so compare totals over several samples.
+    const total = (speed: number) => {
+      let sum = 0;
+      for (let i = 0; i < 40; i++) {
+        const { steps, delayMs } = computeDragTiming(900, speed);
+        sum += steps * delayMs;
+      }
+      return sum / 40;
+    };
+    const normal = total(1);
+    const fast = total(2);
+    expect(fast).toBeGreaterThan(normal / 2 - 30);
+    expect(fast).toBeLessThan(normal / 2 + 30);
+  });
+
+  it("defaults to unchanged timing", () => {
+    const a = computeDragTiming(400);
+    const b = computeDragTiming(400, 1);
+    expect(Math.abs(a.steps * a.delayMs - b.steps * b.delayMs)).toBeLessThan(60);
+  });
+});

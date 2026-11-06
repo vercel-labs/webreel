@@ -30,6 +30,28 @@ describe("validateWebreelConfig videos", () => {
     expect(errors).toContainEqual(expect.objectContaining({ path: "videos.x.steps" }));
   });
 
+  it("rejects a non-positive cursorSpeed", () => {
+    const errors = validateWebreelConfig({ cursorSpeed: 0, videos: {} });
+    expect(errors).toContainEqual(expect.objectContaining({ path: "cursorSpeed" }));
+  });
+
+  it("accepts a positive cursorSpeed at the top level and per video", () => {
+    const errors = validateWebreelConfig({
+      cursorSpeed: 2,
+      videos: { x: { url: "u", cursorSpeed: 1.5, steps: [] } },
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects a non-positive cursorSpeed on a video", () => {
+    const errors = validateWebreelConfig(
+      wrapVideo({ url: "u", cursorSpeed: -1, steps: [] }),
+    );
+    expect(errors).toContainEqual(
+      expect.objectContaining({ path: "videos.x.cursorSpeed" }),
+    );
+  });
+
   it("validates video viewport dimensions", () => {
     const errors = validateWebreelConfig(
       wrapVideo({

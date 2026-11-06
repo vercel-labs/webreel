@@ -48,6 +48,11 @@
       "minimum": 0,
       "description": "Milliseconds the cursor pauses after reaching its target before clicking. Simulates human dwell time. Defaults to a random 80-180ms when not set. Set to 0 to click instantly."
     },
+    "cursorSpeed": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Multiplier on how fast the cursor travels between targets. 1 is the default pace, 2 covers the same ground in half the time. Does not affect typing speed, click dwell or step delays."
+    },
     "videos": {
       "type": "object",
       "minProperties": 1,
@@ -296,6 +301,11 @@
           "type": "number",
           "minimum": 0,
           "description": "Milliseconds the cursor pauses after reaching its target before clicking. Overrides the top-level clickDwell."
+        },
+        "cursorSpeed": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Multiplier on how fast the cursor travels between targets. Overrides the top-level cursorSpeed."
         },
         "steps": {
           "type": "array",

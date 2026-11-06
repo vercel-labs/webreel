@@ -8,8 +8,8 @@ import type { RecordingContext } from "./actions.js";
  * instant, and long cross-screen moves have enough frames to
  * appear smooth at the target capture rate.
  */
-function moveDuration(distance: number): number {
-  return 180 + 16 * Math.sqrt(distance) + (Math.random() - 0.5) * 30;
+function moveDuration(distance: number, speed = 1): number {
+  return (180 + 16 * Math.sqrt(distance) + (Math.random() - 0.5) * 30) / speed;
 }
 
 /**
@@ -76,7 +76,7 @@ export async function animateMoveTo(
 
   if (dist < 1) return;
 
-  const duration = moveDuration(dist);
+  const duration = moveDuration(dist, ctx.cursorSpeed);
   const ctrl = bezierControl(fromX, fromY, toX, toY, dist);
   const p0: Point = { x: fromX, y: fromY };
   const p2: Point = { x: toX, y: toY };
@@ -173,11 +173,14 @@ export function computeEasedPath(
   return pts;
 }
 
-export function computeDragTiming(distance: number): {
+export function computeDragTiming(
+  distance: number,
+  speed = 1,
+): {
   steps: number;
   delayMs: number;
 } {
-  const duration = 300 + 20 * Math.sqrt(distance) + (Math.random() - 0.5) * 40;
+  const duration = (300 + 20 * Math.sqrt(distance) + (Math.random() - 0.5) * 40) / speed;
   const steps = Math.max(12, Math.round(duration / 30));
   return { steps, delayMs: duration / steps };
 }
