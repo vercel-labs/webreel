@@ -7,7 +7,7 @@ import {
   CHROME_CACHE_DIR,
   HEADLESS_SHELL_CACHE_DIR,
   FFMPEG_CACHE_DIR,
-} from "@webreel/core";
+} from "@lgariv/webreel-core";
 
 interface InstallStep {
   label: string;

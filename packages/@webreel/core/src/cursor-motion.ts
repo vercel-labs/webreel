@@ -7,9 +7,17 @@ import type { RecordingContext } from "./actions.js";
  * Returns milliseconds. Tuned so short moves feel quick but not
  * instant, and long cross-screen moves have enough frames to
  * appear smooth at the target capture rate.
+ *
+ * Constants are 2× the original upstream values. Before the
+ * tickDuplicate path-advance fix (see timeline.ts), the capture
+ * loop consumed path positions at half the rate NUM_STEPS assumed,
+ * so moves effectively rendered at 2× this duration. Upstream tuned
+ * the formula against that buggy rendering. With the fix in place,
+ * keeping the old constants made moves feel ~2× too fast. These
+ * scaled-up constants restore the perceived cadence.
  */
 function moveDuration(distance: number): number {
-  return 180 + 16 * Math.sqrt(distance) + (Math.random() - 0.5) * 30;
+  return 360 + 32 * Math.sqrt(distance) + (Math.random() - 0.5) * 60;
 }
 
 /**
@@ -99,7 +107,14 @@ export async function animateMoveTo(
   if (ctx.isRecording && ctx.timeline) {
     ctx.timeline.setCursorPath(positions);
 
-    await new Promise((r) => setTimeout(r, NUM_STEPS * CAPTURE_CYCLE_MS));
+    // Wait until the capture loop has actually consumed the full path — i.e.
+    // until the cursor is visually at (toX, toY). This is hardware-independent
+    // and eliminates the gap between "next action fires" and "cursor arrived",
+    // which previously caused click feedback to appear delayed relative to the
+    // UI's response. A setTimeout-based wait can't match both the frameSlots=2
+    // case (fast consumption, ~17.5 ms/step) and the frameSlots=1 case (slow
+    // consumption, ~35 ms/step) without over- or under-shooting on some hardware.
+    await ctx.timeline.waitForPathComplete();
 
     await client.Input.dispatchMouseEvent({
       type: "mouseMoved",
@@ -127,7 +142,12 @@ export async function animateMoveTo(
     })()`,
   });
 
-  await new Promise((r) => setTimeout(r, NUM_STEPS * CAPTURE_CYCLE_MS));
+  // Wait for the capture loop to consume the path. Each capture cycle takes
+  // ~CAPTURE_CYCLE_MS and consumes TWO path entries (one via tick, one via
+  // tickDuplicate), so total time ≈ NUM_STEPS / 2 * CAPTURE_CYCLE_MS =
+  // NUM_STEPS * FRAME_MS. Using FRAME_MS also correctly scales to
+  // moveDuration() since NUM_STEPS = duration / FRAME_MS by construction.
+  await new Promise((r) => setTimeout(r, NUM_STEPS * FRAME_MS));
 
   await client.Input.dispatchMouseEvent({
     type: "mouseMoved",

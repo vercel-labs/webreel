@@ -320,6 +320,7 @@ const KNOWN_VIDEO_KEYS = new Set([
   "sfx",
   "defaultDelay",
   "clickDwell",
+  "autoZoom",
   "steps",
 ]);
 
