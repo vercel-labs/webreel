@@ -7,7 +7,7 @@
     "dev": "portless webreel next dev",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@mdx-js/loader": "^3",
