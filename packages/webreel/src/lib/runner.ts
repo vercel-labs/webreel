@@ -54,6 +54,8 @@ export function formatStep(i: number, step: Step): string {
       return `[step ${i}] screenshot "${step.output}"${desc}`;
     case "navigate":
       return `[step ${i}] navigate "${step.url}"${desc}`;
+    case "navigateHref":
+      return `[step ${i}] navigateHref selector="${step.selector}"${desc}`;
     case "hover":
       return `[step ${i}] hover ${step.text ? `text="${step.text}"` : `selector="${step.selector}"`}${desc}`;
     case "select":
@@ -354,6 +356,25 @@ export async function runVideo(
           case "navigate": {
             const navUrl = resolveUrl(step.url, config.baseUrl ?? "", configDir);
             await navigate(client, navUrl);
+            break;
+          }
+
+          case "navigateHref": {
+            const result = await client.Runtime.evaluate({
+              expression: `(() => {
+                const el = document.querySelector(${JSON.stringify(step.selector)});
+                if (!el) throw new Error("Element not found: " + ${JSON.stringify(step.selector)});
+                const href = el.href || el.getAttribute("href");
+                if (!href) throw new Error("Element has no href: " + ${JSON.stringify(step.selector)});
+                return new URL(href, window.location.href).href;
+              })()`,
+              returnByValue: true,
+            });
+            const href = result.result?.value;
+            if (typeof href !== "string" || href.length === 0) {
+              throw new Error("navigateHref did not resolve a URL");
+            }
+            await navigate(client, href);
             break;
           }
 
